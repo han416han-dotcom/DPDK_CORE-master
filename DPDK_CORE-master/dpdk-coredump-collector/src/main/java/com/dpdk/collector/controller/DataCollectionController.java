@@ -19,6 +19,8 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/collect")
@@ -28,28 +30,31 @@ public class DataCollectionController {
     private final CoredumpFileRepository coredumpFileRepository;
     private final LogFileRepository logFileRepository;
     private final DataParserService dataParserService;
-    
+
     @PostMapping("/coredump")
     @SuppressWarnings("null")
     public ResponseEntity<?> uploadCoredump(@RequestParam("file") MultipartFile file) {
         try {
             if (file == null || file.isEmpty()) {
-                return ResponseEntity.badRequest().body("上传失败: 文件为空");
+                return ResponseEntity.badRequest().body(Map.of("error", "上传失败: 文件为空"));
             }
 
-            // 只落盘一次：先存储，再基于已保存的文件计算哈希（避免 Multipart 临时文件被 transferTo 移走后再次读取失败）
             String storedPath = fileStorageService.storeCoredumpFile(file);
             String fileHash = FileHashUtil.calculateMD5(new File(storedPath));
 
-            if (coredumpFileRepository.existsByFileHash(fileHash)) {
-                try {
-                    Files.deleteIfExists(Path.of(storedPath));
-                } catch (Exception ignored) {
-                }
-                return ResponseEntity.badRequest().body("该Core文件已存在");
+            Optional<CoredumpFile> existingFile = coredumpFileRepository.findByFileHash(fileHash);
+            if (existingFile.isPresent()) {
+                fileStorageService.deleteFile(storedPath);
+                CoredumpFile existing = existingFile.get();
+                return ResponseEntity.badRequest().body(Map.of(
+                        "error", "该Core文件已存在，请先删除旧记录后再重新上传",
+                        "existingId", existing.getId(),
+                        "existingStatus", existing.getStatus() == null ? "-" : existing.getStatus(),
+                        "existingFileName", existing.getFileName() == null ? "-" : existing.getFileName(),
+                        "existingFilePath", existing.getFilePath() == null ? "-" : existing.getFilePath()
+                ));
             }
-            
-            // 保存文件信息
+
             CoredumpFile coredumpFile = CoredumpFile.builder()
                     .fileName(file.getOriginalFilename())
                     .filePath(storedPath)
@@ -60,16 +65,14 @@ public class DataCollectionController {
                     .sourceType("MANUAL_UPLOAD")
                     .status("PENDING")
                     .build();
-            
+
             coredumpFile = coredumpFileRepository.save(coredumpFile);
-            
-            // 异步解析
             dataParserService.parseCoredumpFileAsync(coredumpFile);
-            
+
             return ResponseEntity.ok(coredumpFile);
-            
+
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("上传失败: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(Map.of("error", "上传失败: " + e.getMessage()));
         }
     }
     

@@ -8,4 +8,6 @@ import java.util.Optional;
 public interface ParsedFeatureRepository extends JpaRepository<ParsedFeature, Long> {
 
     Optional<ParsedFeature> findTopByFileIdAndFileTypeOrderByCreatedAtDesc(Long fileId, String fileType);
+
+    void deleteByFileIdAndFileType(Long fileId, String fileType);
 }

@@ -13,7 +13,7 @@ public class RemoteSshCoredumpParser implements CoredumpParser {
     }
 
     @Override
-    public GdbParserUtil.GdbParseResult parse(File coreFile) {
+    public GdbParserUtil.GdbParseResult parse(File coreFile, String programPath) {
         throw new UnsupportedOperationException("REMOTE_SSH 解析尚未接入：后续可通过 SSH 在 Linux 虚拟机执行 gdb 并回传结果");
     }
 }

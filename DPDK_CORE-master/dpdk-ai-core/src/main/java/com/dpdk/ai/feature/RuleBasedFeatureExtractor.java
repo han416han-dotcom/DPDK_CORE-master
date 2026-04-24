@@ -38,9 +38,29 @@ public class RuleBasedFeatureExtractor {
         v[17] = pf.getCrashAddress() == null ? 0 : 1;
         v[18] = normalizeHash(pf.getCrashSignal());
         v[19] = normalizeHash(pf.getCrashAddress());
-        String blob = safe(pf.getCallStack()) + safe(pf.getRawContent());
-        for (int i = 0; i < RULE_DIM - 20; i++) {
-            v[20 + i] = ngramEnergy(blob, i);
+        v[20] = keyword(pf.getRawContent(), "mempool");
+        v[21] = keyword(pf.getRawContent(), "rte_mempool");
+        v[22] = keyword(pf.getRawContent(), "refcnt");
+        v[23] = keyword(pf.getRawContent(), "lcore");
+        v[24] = keyword(pf.getRawContent(), "thread");
+        v[25] = keyword(pf.getRawContent(), "lock");
+        v[26] = keyword(pf.getRawContent(), "ring");
+        v[27] = keyword(pf.getRawContent(), "atomic");
+        v[28] = keyword(pf.getRawContent(), "hugepage");
+        v[29] = keyword(pf.getRawContent(), "socket-mem");
+        v[30] = keyword(pf.getRawContent(), "numa");
+        v[31] = keyword(pf.getRawContent(), "vfio");
+        v[32] = keyword(pf.getRawContent(), "pci");
+        v[33] = keyword(pf.getRawContent(), "mlx5");
+        v[34] = keyword(pf.getRawContent(), "ixgbe");
+        v[35] = keyword(pf.getRawContent(), "driver");
+        v[36] = keyword(pf.getRawContent(), "unsupported");
+        v[37] = keyword(pf.getRawContent(), "invalid");
+        v[38] = keyword(pf.getRawContent(), "queue");
+        v[39] = keyword(pf.getRawContent(), "port");
+        String blob = safe(pf.getCallStack()) + safe(pf.getRawContent()) + safe(pf.getThreadInfo());
+        for (int i = 0; i < RULE_DIM - 40; i++) {
+            v[40 + i] = ngramEnergy(blob, i);
         }
         return v;
     }

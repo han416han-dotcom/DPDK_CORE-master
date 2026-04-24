@@ -5,87 +5,455 @@
     <title>DPDK 故障分析平台</title>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"/>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root{
+            --dp-bg: #f6f7fb;
+            --dp-bg-2: #ffffff;
+            --dp-surface: rgba(255,255,255,.86);
+            --dp-surface-2: rgba(255,255,255,.94);
+            --dp-stroke: rgba(16,24,40,.10);
+            --dp-text: rgba(16,24,40,.92);
+            --dp-muted: rgba(16,24,40,.70);
+            --dp-faint: rgba(16,24,40,.50);
+            --dp-primary: #5aa7a1;
+            --dp-primary-2: #7bbfb9;
+            --dp-danger: #c76666;
+            --dp-warning: #caa35b;
+            --dp-ok: #5f9a78;
+            --dp-radius-lg: 18px;
+            --dp-radius-md: 14px;
+            --dp-radius-sm: 10px;
+            --dp-shadow-1: 0 10px 30px rgba(16,24,40,.08);
+            --dp-shadow-2: 0 18px 60px rgba(16,24,40,.10);
+            --dp-focus: 0 0 0 .2rem rgba(90,167,161,.20);
+            color-scheme: light;
+        }
+        @media (prefers-reduced-motion: reduce){
+            *{ transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+        }
+        *{ box-sizing: border-box; }
+        body{
+            margin: 0;
+            font-family: "Plus Jakarta Sans", ui-sans-serif, -apple-system, "Segoe UI", "Helvetica Neue", sans-serif;
+            background:
+                radial-gradient(1000px 520px at 10% 0%, rgba(90,167,161,.12), transparent 60%),
+                radial-gradient(900px 520px at 90% 0%, rgba(124,163,201,.10), transparent 60%),
+                linear-gradient(180deg, rgba(255,255,255,.85), rgba(246,247,251,1));
+            color: var(--dp-text);
+            text-wrap: pretty;
+            overflow-x: hidden;
+        }
+        .dp-shell{ max-width: 1260px; }
+        .dp-topbar{
+            background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,.55));
+            border-bottom: 1px solid var(--dp-stroke);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 20;
+        }
+        .dp-brand{ letter-spacing: .2px; font-weight: 700; color: var(--dp-text); }
+        .dp-subtitle{ color: var(--dp-muted); }
+        .dp-card{
+            background: linear-gradient(180deg, var(--dp-surface), var(--dp-surface-2));
+            border: 1px solid var(--dp-stroke);
+            border-radius: var(--dp-radius-lg);
+            box-shadow: var(--dp-shadow-1);
+        }
+        .dp-card--flat{ box-shadow: none; }
+        .dp-pill{
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            border: 1px solid var(--dp-stroke);
+            background: rgba(255,255,255,.72);
+            color: var(--dp-muted);
+            font-size: 13px;
+        }
+        .dp-btn{
+            border-radius: 12px;
+            border: 1px solid var(--dp-stroke);
+            background: rgba(255,255,255,.78);
+            color: var(--dp-text);
+            transition: transform .12s ease, background .12s ease, border-color .12s ease;
+        }
+        .dp-btn:hover{ transform: translateY(-1px); background: rgba(255,255,255,.92); border-color: rgba(16,24,40,.16); }
+        .dp-btn:active{ transform: translateY(0); }
+        .dp-btn:focus-visible{ outline: none; box-shadow: var(--dp-focus); }
+        .dp-btn-primary{
+            background: linear-gradient(180deg, rgba(90,167,161,.22), rgba(90,167,161,.12));
+            border-color: rgba(90,167,161,.32);
+        }
+        .dp-btn-primary:hover{ background: linear-gradient(180deg, rgba(90,167,161,.28), rgba(90,167,161,.16)); }
+        .dp-input{
+            border-radius: 12px !important;
+            border: 1px solid var(--dp-stroke) !important;
+            background: rgba(255,255,255,.85) !important;
+            color: var(--dp-text) !important;
+        }
+        .dp-input::placeholder{ color: rgba(16,24,40,.45); }
+        .dp-input:focus{ box-shadow: var(--dp-focus) !important; }
+        .dp-table{
+            color: var(--dp-text);
+            --bs-table-bg: transparent;
+            --bs-table-color: var(--dp-text);
+            --bs-table-border-color: rgba(16,24,40,.08);
+            table-layout: fixed;
+            width: 100%;
+            min-width: 980px;
+            margin-bottom: 0;
+        }
+        .dp-table thead th{
+            background: rgba(246,247,251,.92);
+            color: var(--dp-muted);
+            font-weight: 600;
+            border-bottom: 1px solid rgba(16,24,40,.10);
+            white-space: nowrap;
+        }
+        .dp-kbd{
+            font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+            border: 1px solid rgba(16,24,40,.14);
+            background: rgba(255,255,255,.80);
+            border-radius: 8px;
+            padding: 2px 8px;
+            color: var(--dp-text);
+            font-size: 12px;
+        }
+        .dp-badge{
+            border-radius: 999px;
+            padding: 6px 10px;
+            border: 1px solid rgba(16,24,40,.10);
+            background: rgba(255,255,255,.72);
+            color: var(--dp-muted);
+            font-weight: 600;
+            font-size: 12px;
+        }
+        .dp-badge--ok{ border-color: rgba(95,154,120,.28); background: rgba(95,154,120,.10); color: rgba(16,24,40,.92); }
+        .dp-badge--warn{ border-color: rgba(202,163,91,.28); background: rgba(202,163,91,.10); color: rgba(16,24,40,.92); }
+        .dp-badge--danger{ border-color: rgba(199,102,102,.26); background: rgba(199,102,102,.10); color: rgba(16,24,40,.92); }
+        .dp-badge--info{ border-color: rgba(90,167,161,.28); background: rgba(90,167,161,.10); color: rgba(16,24,40,.92); }
+        .dp-drop{
+            border: 1.5px dashed rgba(16,24,40,.18);
+            border-radius: var(--dp-radius-md);
+            background: rgba(255,255,255,.72);
+            padding: 14px;
+            transition: background .12s ease, border-color .12s ease, transform .12s ease;
+            cursor: pointer;
+        }
+        .dp-drop[data-over="1"]{ background: rgba(90,167,161,.12); border-color: rgba(90,167,161,.32); transform: translateY(-1px); }
+        .dp-muted{ color: var(--dp-muted) !important; }
+        .dp-faint{ color: var(--dp-faint) !important; }
+        .dp-link{ color: rgba(70,130,125,.95); text-decoration: none; }
+        .dp-link:hover{ text-decoration: underline; }
+        .toast-container{ z-index: 1080; }
+        .table-card{ overflow: hidden; }
+        .table-responsive{ overflow-x: auto; }
+        .file-name-cell{
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 0;
+        }
+        .file-name-text,
+        .file-name-subtext,
+        .error-snippet,
+        .path-snippet{
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+        .file-name-text{ font-weight: 600; }
+        .actions-cell{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            justify-content: flex-start;
+        }
+        .action-inline{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+        .path-snippet{ max-width: 100%; }
+        .parsing-row{
+            background: rgba(90,167,161,.08);
+        }
+        @media (max-width: 991.98px){
+            .dp-shell{ padding-left: 12px; padding-right: 12px; }
+        }
+        @media (max-width: 575.98px){
+            .dp-pill{ width: 100%; justify-content: space-between; }
+            #pickedFileMeta{ max-width: 60vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        }
+    </style>
 </head>
-<body class="bg-light">
-<nav class="navbar navbar-dark bg-dark mb-4">
-    <div class="container-fluid">
-        <span class="navbar-brand mb-0 h1">DPDK 故障分析平台</span>
-        <span class="text-secondary small">数据采集 · AI 核心 · 工程应用</span>
+<body>
+<nav class="dp-topbar py-3 mb-4">
+    <div class="container dp-shell d-flex align-items-center justify-content-between gap-3 flex-wrap">
+        <div class="d-flex flex-column">
+            <div class="dp-brand h5 mb-1">DPDK 故障分析平台</div>
+            <div class="dp-subtitle small">数据采集 · AI 核心 · 工程应用</div>
+        </div>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+            <span class="dp-pill">
+                <span class="dp-faint">当前环境</span>
+                <span>仅保留 WSL2 Ubuntu 解析链路</span>
+            </span>
+        </div>
     </div>
 </nav>
-<div class="container">
-    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-        <h2 class="h4 mb-0">Core 文件列表</h2>
-        <div class="d-flex align-items-center gap-2">
-            <input type="file" id="coredumpFileInput" class="d-none"/>
-            <button type="button" class="btn btn-primary btn-sm" id="coredumpUploadBtn">上传 Core 文件</button>
-            <span class="text-muted small" id="coredumpUploadMsg" aria-live="polite"></span>
+
+<div class="container dp-shell">
+    <div class="row g-3 align-items-stretch">
+        <div class="col-12 col-lg-4">
+            <div class="dp-card p-3 p-md-4 h-100">
+                <div class="d-flex align-items-start justify-content-between gap-3">
+                    <div>
+                        <div class="h5 mb-1">上传 Core 文件</div>
+                        <div class="dp-muted small">支持 WSL2 Ubuntu 解析流程；同一文件按内容去重，若需重传请先删除旧记录。</div>
+                    </div>
+                    <span class="dp-kbd">/api/collect/coredump</span>
+                </div>
+
+                <div class="mt-3 dp-drop" id="dropZone" role="button" tabindex="0" aria-label="拖拽文件到此处上传，或点击选择文件">
+                    <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap">
+                        <div>
+                            <div class="fw-semibold">点击上传 Core 文件</div>
+                            <div class="dp-muted small">支持 .core, .gz, .tar.gz, .gdb, .txt, .log 格式</div>
+                            <div class="dp-faint small mt-1">当前已按本地 WSL2 测试场景预置：program-path = /home/hnhyh/core_test/crash_app</div>
+                        </div>
+                        <div class="d-flex gap-2 align-items-center">
+                            <input type="file" id="coredumpFileInput" class="d-none" accept=".core,.gz,.tar.gz,.gdb,.txt,.log"/>
+                            <button type="button" class="dp-btn dp-btn-primary btn btn-sm px-3" id="coredumpUploadBtn">
+                                选择文件
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mt-3 d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                        <div class="small dp-muted" id="pickedFileMeta">未选择文件</div>
+                        <div class="small dp-faint">最大 500MB</div>
+                    </div>
+                </div>
+
+                <div class="mt-3 d-flex align-items-center gap-2 flex-wrap">
+                    <button type="button" class="dp-btn btn btn-sm px-3" id="uploadNowBtn" disabled>上传</button>
+                    <span class="small dp-muted" id="coredumpUploadMsg" aria-live="polite"></span>
+                </div>
+
+                <div class="mt-3 small dp-faint">
+                    若上传同一内容的文件，系统会直接提示已有旧记录，并返回旧记录 ID、状态和路径，便于你先删除再重传。
+                </div>
+                <div class="mt-3 small dp-muted" style="line-height: 1.7;">
+                    若想得到可信的 AI 根因分析，请确保 GDB 能拿到与该 core 对应的原始可执行文件。
+                    如果诊断页关键栈帧大量显示 <code>?? ()</code>，说明当前缺少符号信息，AI 只能给出宽泛兜底结论。
+                    系统会优先尝试根据 <code>core_app_xxx_时间戳</code> 这类文件名自动匹配同目录下的 <code>app_xxx</code> ELF；匹配不到时才回退到 <code>dpdk.collector.parse.program-path</code>。
+                </div>
+            </div>
         </div>
-    </div>
-    <div class="card shadow-sm">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead class="table-light">
-                <tr>
-                    <th>ID</th>
-                    <th>文件名</th>
-                    <th>状态</th>
-                    <th>来源</th>
-                    <th>操作</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr th:each="f : ${files.content}">
-                    <td th:text="${f.id}">1</td>
-                    <td th:text="${f.fileName}">core</td>
-                    <td><span class="badge bg-secondary" th:text="${f.status}">PENDING</span></td>
-                    <td th:text="${f.sourceType}">MANUAL</td>
-                    <td>
-                        <form class="d-inline" th:action="@{'/ui/parse/' + ${f.id}}" method="post">
-                            <select class="form-select form-select-sm d-inline-block w-auto me-1" name="backend">
-                                <option value="LOCAL_GDB" selected>本机 GDB</option>
-                                <option value="WSL2_GDB">WSL2 GDB</option>
-                                <option value="REMOTE_SSH" disabled>Linux 虚拟机(待接入)</option>
-                            </select>
-                            <button type="submit" class="btn btn-sm btn-outline-primary">解析</button>
-                        </form>
-                        <a class="btn btn-sm btn-primary" th:href="@{'/diagnosis/' + ${f.id}}">智能定位</a>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
-        <div class="card-footer d-flex justify-content-between" th:if="${files.totalPages > 1}">
-            <a class="btn btn-sm btn-outline-secondary" th:if="${files.hasPrevious()}"
-               th:href="@{/(page=${files.number - 1})}">上一页</a>
-            <span class="small text-muted" th:text="${files.number + 1} + ' / ' + ${files.totalPages}">1 / 1</span>
-            <a class="btn btn-sm btn-outline-secondary" th:if="${files.hasNext()}"
-               th:href="@{/(page=${files.number + 1})}">下一页</a>
+
+        <div class="col-12 col-lg-8">
+            <div class="dp-card table-card p-0">
+                <div class="p-3 p-md-4 border-bottom" style="border-color: rgba(16,24,40,.10) !important;">
+                    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+                        <div>
+                            <div class="h5 mb-1">文件列表</div>
+                            <div class="dp-muted small">支持单条删除、清空全部、重新解析和失败原因查看，方便你从头重新上传与分析。</div>
+                        </div>
+                        <div class="d-flex gap-2 align-items-center flex-wrap justify-content-lg-end">
+                            <span class="dp-badge dp-badge--info" id="fileCount" th:text="${files.totalElements} + ' 个文件'">0 个文件</span>
+                            <input class="form-control form-control-sm dp-input" id="tableFilter" placeholder="筛选：文件名 / 状态 / 来源" aria-label="筛选列表" />
+                            <button class="dp-btn btn btn-sm px-3" type="button" onclick="deleteAllFiles()">清空全部</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover dp-table" id="fileTable">
+                        <thead>
+                        <tr>
+                            <th style="width: 72px;">ID</th>
+                            <th style="width: 34%;">文件信息</th>
+                            <th style="width: 110px;">状态</th>
+                            <th style="width: 110px;">来源</th>
+                            <th style="width: 34%;">操作</th>
+                        </tr>
+                        </thead>
+                        <tbody id="fileTableBody">
+                        <tr id="emptyRow" th:if="${files.content == null or #lists.isEmpty(files.content)}">
+                            <td colspan="5" class="p-4">
+                                <div class="dp-card dp-card--flat p-4" style="background: rgba(255,255,255,.80);">
+                                    <div class="h6 mb-1">暂无文件</div>
+                                    <div class="dp-muted small mb-3">从左侧上传 Core 文件后，这里会出现记录。</div>
+                                    <button class="dp-btn btn btn-sm px-3" type="button" onclick="document.getElementById('coredumpUploadBtn').click()">立即上传</button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr th:each="f : ${files.content}" th:id="|row-${f.id}|">
+                            <td th:text="${f.id}">1</td>
+                            <td>
+                                <div class="file-name-cell">
+                                    <div class="file-name-text" th:text="${f.fileName}">core</div>
+                                    <div class="file-name-subtext small dp-muted">
+                                        路径：<span class="path-snippet" th:text="${f.filePath}">/path/to/file</span>
+                                    </div>
+                                    <div class="small dp-muted" th:if="${f.errorMessage != null and !#strings.isEmpty(f.errorMessage)}">
+                                        失败原因：<span class="error-snippet" th:text="${f.errorMessage}">error</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="dp-badge"
+                                      th:classappend="${f.status == 'PARSED' ? ' dp-badge--ok' : (f.status == 'PARSING' ? ' dp-badge--info' : (f.status == 'FAILED' ? ' dp-badge--danger' : ' dp-badge--warn'))}"
+                                      th:text="${f.status}">PENDING</span>
+                            </td>
+                            <td class="dp-muted" th:text="${f.sourceType}">MANUAL</td>
+                            <td>
+                                <div class="actions-cell">
+                                    <div class="action-inline">
+                                        <button type="button" class="dp-btn btn btn-sm px-3" th:id="|parseBtn-${f.id}|" th:onclick="|triggerParse(${f.id})|">重新解析</button>
+                                        <a class="dp-btn dp-btn-primary btn btn-sm px-3" th:href="@{'/diagnosis/' + ${f.id}}">智能定位</a>
+                                        <button type="button" class="dp-btn btn btn-sm px-3" th:onclick="|deleteFile(${f.id})|">删除</button>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="p-3 p-md-4 d-flex justify-content-between align-items-center"
+                     th:if="${files.totalPages > 1}"
+                     style="border-top: 1px solid rgba(16,24,40,.10);">
+                    <a class="dp-btn btn btn-sm px-3" th:if="${files.hasPrevious()}" th:href="@{/(page=${files.number - 1})}">上一页</a>
+                    <span class="small dp-muted" th:text="${files.number + 1} + ' / ' + ${files.totalPages}">1 / 1</span>
+                    <a class="dp-btn btn btn-sm px-3" th:if="${files.hasNext()}" th:href="@{/(page=${files.number + 1})}">下一页</a>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="parseModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content dp-card border-0">
+            <div class="modal-body p-4 text-center">
+                <div class="spinner-border mb-3" style="color: var(--dp-primary);" role="status"></div>
+                <div class="h6 mb-2" id="parseStatus">正在重新解析...</div>
+                <div class="small dp-muted" id="parseFileName">文件处理中</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container position-fixed bottom-0 end-0 p-3" aria-live="polite" aria-atomic="true">
+    <div id="toast" class="toast text-bg-dark border-0" role="status">
+        <div class="d-flex">
+            <div class="toast-body" id="toastBody"></div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="关闭"></button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 (function () {
     var input = document.getElementById('coredumpFileInput');
     var btn = document.getElementById('coredumpUploadBtn');
     var msg = document.getElementById('coredumpUploadMsg');
+    var uploadNowBtn = document.getElementById('uploadNowBtn');
+    var meta = document.getElementById('pickedFileMeta');
+    var filter = document.getElementById('tableFilter');
+    var drop = document.getElementById('dropZone');
+    var toastEl = document.getElementById('toast');
+    var toastBody = document.getElementById('toastBody');
+    var parseModalEl = document.getElementById('parseModal');
+    var parseModal = parseModalEl ? bootstrap.Modal.getOrCreateInstance(parseModalEl, { backdrop: 'static', keyboard: false }) : null;
+    var toast = null;
     if (!input || !btn) return;
+
+    function fmtBytes(n){
+        if (typeof n !== 'number' || !isFinite(n)) return '';
+        var u = ['B','KB','MB','GB'];
+        var i = 0;
+        while (n >= 1024 && i < u.length - 1){ n = n / 1024; i++; }
+        return (Math.round(n * 10) / 10) + ' ' + u[i];
+    }
+
+    function showToast(text){
+        try{
+            if (!toastEl) return alert(text);
+            toastBody.textContent = text;
+            if (!toast) toast = bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 4200 });
+            toast.show();
+        }catch(e){
+            alert(text);
+        }
+    }
+
+    function setPickedFile(file){
+        if (!file){
+            meta.textContent = '未选择文件';
+            uploadNowBtn.disabled = true;
+            return;
+        }
+        meta.textContent = file.name + ' · ' + fmtBytes(file.size);
+        uploadNowBtn.disabled = false;
+    }
+
+    function updateFileCount(){
+        var rows = document.querySelectorAll('#fileTableBody tr[id^="row-"]');
+        var fileCount = document.getElementById('fileCount');
+        if (fileCount) {
+            fileCount.textContent = rows.length + ' 个文件';
+        }
+        var emptyRow = document.getElementById('emptyRow');
+        if (rows.length === 0 && !emptyRow) {
+            var tbody = document.getElementById('fileTableBody');
+            if (!tbody) return;
+            var tr = document.createElement('tr');
+            tr.id = 'emptyRow';
+            tr.innerHTML = '<td colspan="5" class="p-4"><div class="dp-card dp-card--flat p-4" style="background: rgba(255,255,255,.80);"><div class="h6 mb-1">暂无文件</div><div class="dp-muted small mb-3">从左侧上传 Core 文件后，这里会出现记录。</div><button class="dp-btn btn btn-sm px-3" type="button" onclick="document.getElementById(\'coredumpUploadBtn\').click()">立即上传</button></div></td>';
+            tbody.appendChild(tr);
+        }
+    }
 
     btn.addEventListener('click', function () {
         input.click();
     });
 
-    input.addEventListener('change', function () {
-        if (!input.files || !input.files.length) return;
-        var file = input.files[0];
+    function parseServerError(payload, fallback){
+        if (!payload) return fallback;
+        if (typeof payload === 'string') return payload || fallback;
+        if (payload.error) {
+            if (payload.existingId) {
+                return (payload.error || fallback)
+                    + '\n\n旧记录ID: ' + payload.existingId
+                    + '\n状态: ' + (payload.existingStatus || '-')
+                    + '\n文件名: ' + (payload.existingFileName || '-')
+                    + '\n路径: ' + (payload.existingFilePath || '-');
+            }
+            return payload.error;
+        }
+        return fallback;
+    }
+
+    function doUpload(file){
+        if (!file) return;
         var fd = new FormData();
         fd.append('file', file);
         btn.disabled = true;
+        uploadNowBtn.disabled = true;
         msg.textContent = '上传中…';
         fetch('/api/collect/coredump', { method: 'POST', body: fd })
             .then(function (res) {
                 return res.text().then(function (text) {
-                    return { ok: res.ok, status: res.status, text: text };
+                    var parsed = text;
+                    try { parsed = text ? JSON.parse(text) : {}; } catch (e) {}
+                    return { ok: res.ok, status: res.status, body: parsed };
                 });
             })
             .then(function (r) {
@@ -95,17 +463,153 @@
                     return;
                 }
                 msg.textContent = '';
-                alert(r.status === 400 ? r.text : ('上传失败 (' + r.status + '): ' + r.text));
+                showToast(parseServerError(r.body, '上传失败'));
             })
             .catch(function (e) {
                 msg.textContent = '';
-                alert('上传失败: ' + (e && e.message ? e.message : String(e)));
+                showToast('上传失败: ' + (e && e.message ? e.message : String(e)));
             })
             .finally(function () {
                 btn.disabled = false;
+                uploadNowBtn.disabled = !input.files || !input.files.length;
                 input.value = '';
+                setPickedFile(null);
             });
+    }
+
+    input.addEventListener('change', function () {
+        if (!input.files || !input.files.length) return;
+        setPickedFile(input.files[0]);
     });
+
+    if (uploadNowBtn){
+        uploadNowBtn.addEventListener('click', function(){
+            if (!input.files || !input.files.length) return;
+            doUpload(input.files[0]);
+        });
+    }
+
+    if (drop){
+        function prevent(e){ e.preventDefault(); e.stopPropagation(); }
+        ['dragenter','dragover','dragleave','drop'].forEach(function(evt){
+            drop.addEventListener(evt, prevent);
+        });
+        drop.addEventListener('dragenter', function(){ drop.dataset.over = '1'; });
+        drop.addEventListener('dragover', function(){ drop.dataset.over = '1'; });
+        drop.addEventListener('dragleave', function(){ drop.dataset.over = '0'; });
+        drop.addEventListener('drop', function(e){
+            drop.dataset.over = '0';
+            var dt = e.dataTransfer;
+            if (!dt || !dt.files || !dt.files.length) return;
+            var f = dt.files[0];
+            try{
+                var data = new DataTransfer();
+                data.items.add(f);
+                input.files = data.files;
+            }catch(err){
+            }
+            setPickedFile(f);
+        });
+        drop.addEventListener('click', function(){ btn.click(); });
+        drop.addEventListener('keydown', function(e){
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); btn.click(); }
+        });
+    }
+
+    if (filter){
+        filter.addEventListener('input', function(){
+            var q = (filter.value || '').trim().toLowerCase();
+            var table = document.getElementById('fileTable');
+            if (!table) return;
+            var rows = table.querySelectorAll('tbody tr');
+            rows.forEach(function(tr){
+                if (tr.querySelector('td[colspan]')) return;
+                var text = (tr.textContent || '').toLowerCase();
+                tr.style.display = q && text.indexOf(q) === -1 ? 'none' : '';
+            });
+        });
+    }
+
+    window.triggerParse = async function(id) {
+        var parseBtn = document.getElementById('parseBtn-' + id);
+        var row = document.getElementById('row-' + id);
+        if (parseBtn) {
+            parseBtn.disabled = true;
+            parseBtn.textContent = '解析中...';
+        }
+        if (row) {
+            row.classList.add('parsing-row');
+        }
+        if (parseModal) {
+            document.getElementById('parseStatus').textContent = '正在重新解析...';
+            document.getElementById('parseFileName').textContent = '文件ID: ' + id;
+            parseModal.show();
+        }
+        try {
+            var res = await fetch('/ui/parse/' + id, { method: 'POST' });
+            var data = await res.json();
+            if (!res.ok || !data.success) {
+                throw new Error((data && data.error) || '重新解析失败');
+            }
+            window.location.href = data.diagnosisUrl;
+        } catch (err) {
+            if (parseModal) {
+                parseModal.hide();
+            }
+            if (parseBtn) {
+                parseBtn.disabled = false;
+                parseBtn.textContent = '重新解析';
+            }
+            if (row) {
+                row.classList.remove('parsing-row');
+            }
+            showToast('重新解析失败: ' + err.message);
+        }
+    };
+
+    window.deleteFile = async function(id) {
+        if (!confirm('确定删除该文件吗？这会同时删除数据库记录、解析结果和存储文件。')) {
+            return;
+        }
+        try {
+            var res = await fetch('/ui/files/' + id, { method: 'DELETE' });
+            var data = await res.json();
+            if (!res.ok || !data.success) {
+                throw new Error((data && data.error) || '删除失败');
+            }
+            var row = document.getElementById('row-' + id);
+            if (row) {
+                row.remove();
+            }
+            updateFileCount();
+            showToast('删除成功');
+        } catch (err) {
+            showToast('删除失败: ' + err.message);
+        }
+    };
+
+    window.deleteAllFiles = async function() {
+        var rows = document.querySelectorAll('#fileTableBody tr[id^="row-"]');
+        if (!rows.length) {
+            showToast('当前没有可删除的文件');
+            return;
+        }
+        if (!confirm('确定清空全部文件吗？这会同时删除数据库记录、解析结果和存储文件。')) {
+            return;
+        }
+        try {
+            var res = await fetch('/ui/files', { method: 'DELETE' });
+            var data = await res.json();
+            if (!res.ok || !data.success) {
+                throw new Error((data && data.error) || '清空失败');
+            }
+            rows.forEach(function(row){ row.remove(); });
+            updateFileCount();
+            showToast('已清空全部文件');
+        } catch (err) {
+            showToast('清空失败: ' + err.message);
+        }
+    };
 })();
 </script>
 </body>

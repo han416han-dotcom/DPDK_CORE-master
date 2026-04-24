@@ -19,5 +19,31 @@ public class WslPathUtil {
         String rest = p.substring(2).replace('\\', '/');
         return "/mnt/" + drive + rest;
     }
+
+    public static boolean isWindowsAbsolutePath(String path) {
+        if (path == null || path.isBlank()) {
+            return false;
+        }
+        String p = path.trim();
+        return p.length() >= 3 && p.charAt(1) == ':' && (p.charAt(2) == '\\' || p.charAt(2) == '/');
+    }
+
+    public static boolean isWslMountPath(String path) {
+        if (path == null || path.isBlank()) {
+            return false;
+        }
+        String p = path.trim();
+        return p.matches("^/mnt/[a-zA-Z]/.*");
+    }
+
+    public static String normalizeForWsl(String path) {
+        if (path == null || path.isBlank()) {
+            return path;
+        }
+        if (isWindowsAbsolutePath(path)) {
+            return windowsToWslMountPath(path);
+        }
+        return path.trim().replace('\\', '/');
+    }
 }
 

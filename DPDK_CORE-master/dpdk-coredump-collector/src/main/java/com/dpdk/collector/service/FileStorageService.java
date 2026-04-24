@@ -20,27 +20,38 @@ import java.util.Objects;
 public class FileStorageService {
     private final FileStorageConfig fileStorageConfig;
     private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
-    
+
     public String storeCoredumpFile(MultipartFile file) throws IOException {
         return storeFile(file, fileStorageConfig.getCoredumpDir());
     }
-    
+
     public String storeLogFile(MultipartFile file) throws IOException {
         return storeFile(file, fileStorageConfig.getLogDir());
     }
-    
+
     public String storeAutoScannedFile(File sourceFile, String targetDir) throws IOException {
         String fileName = sourceFile.getName();
         String timestamp = dateFormatter.format(LocalDateTime.now());
         String newFileName = timestamp + "_" + fileName;
-        
+
         Path targetPath = Paths.get(fileStorageConfig.getPath(), targetDir, newFileName);
         Files.createDirectories(targetPath.getParent());
-        
+
         FileUtils.copyFile(sourceFile, targetPath.toFile());
         return targetPath.toString();
     }
-    
+
+    public boolean deleteFile(String filePath) {
+        if (filePath == null || filePath.isBlank()) {
+            return false;
+        }
+        try {
+            return Files.deleteIfExists(Path.of(filePath));
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
     private String storeFile(MultipartFile file, String subDir) throws IOException {
         if (file == null) {
             throw new IllegalArgumentException("file 不能为空");
@@ -51,10 +62,10 @@ public class FileStorageService {
             originalFileName = "uploaded.bin";
         }
         String newFileName = timestamp + "_" + originalFileName;
-        
+
         Path targetPath = Paths.get(fileStorageConfig.getPath(), subDir, newFileName);
         Files.createDirectories(targetPath.getParent());
-        
+
         File targetFile = targetPath.toFile();
         file.transferTo(Objects.requireNonNull(targetFile));
         return targetPath.toString();

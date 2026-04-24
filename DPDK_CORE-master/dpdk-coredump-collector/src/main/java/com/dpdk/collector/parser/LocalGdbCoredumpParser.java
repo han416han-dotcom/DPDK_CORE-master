@@ -13,8 +13,8 @@ public class LocalGdbCoredumpParser implements CoredumpParser {
     }
 
     @Override
-    public GdbParserUtil.GdbParseResult parse(File coreFile) throws Exception {
-        return GdbParserUtil.parseCoredump(coreFile);
+    public GdbParserUtil.GdbParseResult parse(File coreFile, String programPath) throws Exception {
+        return GdbParserUtil.parseCoredump(coreFile, programPath);
     }
 }
 

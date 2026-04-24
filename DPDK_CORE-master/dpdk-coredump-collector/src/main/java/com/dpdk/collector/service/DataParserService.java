@@ -25,6 +25,7 @@ public class DataParserService {
     private final ParsedFeatureRepository parsedFeatureRepository;
     private final DataNormalizationService normalizationService;
     private final ParseBackendConfig parseBackendConfig;
+    private final ProgramPathResolver programPathResolver;
     private final List<CoredumpParser> coredumpParsers;
     
     @Async
@@ -47,7 +48,8 @@ public class DataParserService {
 
             // 调用解析器解析 Core 文件（本机 gdb / WSL2 gdb / 远程 SSH 等）
             File coreFile = new File(coredumpFile.getFilePath());
-            var result = parser.parse(coreFile);
+            String resolvedProgramPath = programPathResolver.resolveProgramPath(coredumpFile, parseBackendConfig.getProgramPath());
+            var result = parser.parse(coreFile, resolvedProgramPath);
             
             // 数据标准化处理
             ParsedFeature feature = normalizationService.normalizeCoredumpResult(result);

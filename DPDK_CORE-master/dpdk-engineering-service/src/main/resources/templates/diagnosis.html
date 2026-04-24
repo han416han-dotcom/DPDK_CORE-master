@@ -3,49 +3,467 @@
 <head>
     <meta charset="UTF-8"/>
     <title>智能定位</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"/>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root{
+            --dp-surface: rgba(255,255,255,.86);
+            --dp-surface-2: rgba(255,255,255,.94);
+            --dp-stroke: rgba(16,24,40,.10);
+            --dp-text: rgba(16,24,40,.92);
+            --dp-muted: rgba(16,24,40,.70);
+            --dp-primary: #5aa7a1;
+            --dp-danger: #c76666;
+            --dp-warning: #caa35b;
+            --dp-ok: #5f9a78;
+            --dp-radius-lg: 18px;
+            --dp-radius-md: 14px;
+            --dp-shadow-1: 0 10px 30px rgba(16,24,40,.08);
+            --dp-focus: 0 0 0 .2rem rgba(90,167,161,.20);
+            color-scheme: light;
+        }
+        *{ box-sizing: border-box; }
+        body{
+            margin: 0;
+            font-family: "Plus Jakarta Sans", ui-sans-serif, -apple-system, "Segoe UI", "Helvetica Neue", sans-serif;
+            background:
+                radial-gradient(1100px 540px at 10% 0%, rgba(90,167,161,.12), transparent 60%),
+                radial-gradient(820px 480px at 90% 10%, rgba(202,163,91,.10), transparent 60%),
+                linear-gradient(180deg, rgba(255,255,255,.85), rgba(246,247,251,1));
+            color: var(--dp-text);
+            overflow-x: hidden;
+        }
+        .dp-shell{ max-width: 1240px; }
+        .dp-topbar{
+            background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,.55));
+            border-bottom: 1px solid var(--dp-stroke);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 20;
+        }
+        .dp-link{ color: rgba(70,130,125,.95); text-decoration: none; }
+        .dp-link:hover{ text-decoration: underline; }
+        .dp-card{
+            background: linear-gradient(180deg, var(--dp-surface), var(--dp-surface-2));
+            border: 1px solid var(--dp-stroke);
+            border-radius: var(--dp-radius-lg);
+            box-shadow: var(--dp-shadow-1);
+        }
+        .dp-btn{
+            border-radius: 12px;
+            border: 1px solid var(--dp-stroke);
+            background: rgba(255,255,255,.78);
+            color: var(--dp-text);
+            transition: transform .12s ease, background .12s ease, border-color .12s ease;
+        }
+        .dp-btn:hover{ transform: translateY(-1px); background: rgba(255,255,255,.92); border-color: rgba(16,24,40,.16); }
+        .dp-btn:focus-visible{ outline: none; box-shadow: var(--dp-focus); }
+        .dp-btn-primary{
+            background: linear-gradient(180deg, rgba(90,167,161,.22), rgba(90,167,161,.12));
+            border-color: rgba(90,167,161,.32);
+        }
+        .dp-meta{
+            border: 1px solid rgba(16,24,40,.10);
+            border-radius: var(--dp-radius-md);
+            background: rgba(255,255,255,.78);
+            padding: 12px 14px;
+        }
+        .dp-badge{
+            border-radius: 999px;
+            padding: 6px 10px;
+            border: 1px solid rgba(16,24,40,.10);
+            background: rgba(255,255,255,.72);
+            color: var(--dp-muted);
+            font-weight: 600;
+            font-size: 12px;
+        }
+        .dp-badge--ok{ border-color: rgba(95,154,120,.28); background: rgba(95,154,120,.10); color: rgba(16,24,40,.92); }
+        .dp-badge--warn{ border-color: rgba(202,163,91,.28); background: rgba(202,163,91,.10); color: rgba(16,24,40,.92); }
+        .dp-badge--danger{ border-color: rgba(199,102,102,.26); background: rgba(199,102,102,.10); color: rgba(16,24,40,.92); }
+        .dp-badge--info{ border-color: rgba(90,167,161,.28); background: rgba(90,167,161,.10); color: rgba(16,24,40,.92); }
+        .dp-seg{
+            display: inline-flex;
+            border-radius: 999px;
+            border: 1px solid rgba(16,24,40,.12);
+            background: rgba(255,255,255,.72);
+            padding: 4px;
+            gap: 4px;
+        }
+        .dp-seg button{
+            border: 0;
+            background: transparent;
+            color: rgba(16,24,40,.72);
+            border-radius: 999px;
+            padding: 6px 10px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .dp-seg button[aria-pressed="true"]{
+            background: rgba(90,167,161,.14);
+            color: rgba(16,24,40,.92);
+        }
+        .dp-grid{ display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .dp-chart-card{
+            border: 1px solid rgba(16,24,40,.10);
+            border-radius: 16px;
+            background: rgba(255,255,255,.78);
+            padding: 14px;
+        }
+        .diagnosis-header{
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .page-actions{ display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        .chip-list{ display: flex; flex-wrap: wrap; gap: 8px; }
+        .signal-list, .step-list{ display: grid; gap: 12px; }
+        .signal-card, .step-card, .score-row{
+            border: 1px solid rgba(16,24,40,.08);
+            border-radius: 14px;
+            background: rgba(255,255,255,.72);
+            padding: 12px 14px;
+        }
+        .score-bar{
+            height: 8px;
+            border-radius: 999px;
+            background: rgba(16,24,40,.08);
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        .score-bar > span{
+            display: block;
+            height: 100%;
+            background: linear-gradient(90deg, rgba(90,167,161,.45), rgba(90,167,161,.9));
+            border-radius: 999px;
+        }
+        pre{
+            border-radius: 14px;
+            border: 1px solid rgba(16,24,40,.10);
+            background: rgba(255,255,255,.78);
+            padding: 12px 14px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .summary-panel{
+            border: 1px solid rgba(90,167,161,.20);
+            background: rgba(90,167,161,.08);
+            border-radius: 16px;
+            padding: 16px;
+        }
+        @media (max-width: 991.98px){ .dp-grid{ grid-template-columns: 1fr; } }
+        @media (max-width: 575.98px){ .dp-shell{ padding-left: 12px; padding-right: 12px; } }
+    </style>
 </head>
-<body class="bg-light">
-<nav class="navbar navbar-dark bg-dark mb-4">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="/">← 返回</a>
-        <span class="navbar-text text-light">文件 <span th:text="${fileId}">0</span> / <span th:text="${fileType}">COREDUMP</span></span>
-    </div>
-</nav>
-<div class="container" th:if="${diagnosis == null}">
-    <div class="alert alert-warning">暂无可用的标准化特征（请先完成解析并等待 <code>PARSED</code>）。</div>
-</div>
-<div class="container" th:if="${diagnosis != null}">
-    <div class="card shadow-sm mb-3">
-        <div class="card-body">
-            <h2 class="h5" th:text="${diagnosis.faultName}">故障</h2>
-            <p class="mb-1"><span class="badge bg-primary" th:text="${diagnosis.faultCode}">CODE</span>
-                <span class="text-muted ms-2">置信度</span>
-                <span th:text="${#numbers.formatDecimal(diagnosis.confidence, 1, 4)}">0</span>
-            </p>
-            <hr/>
-            <h3 class="h6">根因提示</h3>
-            <ul>
-                <li th:each="h : ${diagnosis.rootCauseHints}" th:text="${h}">hint</li>
-            </ul>
+<body>
+<nav class="dp-topbar py-3 mb-4">
+    <div class="container dp-shell d-flex align-items-center justify-content-between gap-3 flex-wrap">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <a class="dp-link fw-semibold" href="/">返回列表</a>
+            <span class="dp-badge">文件 <span th:text="${fileId}">0</span></span>
+            <span class="dp-badge" th:text="${fileType}">COREDUMP</span>
+            <span class="dp-badge dp-badge--info">当前环境：WSL2 Ubuntu GDB</span>
+        </div>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+            <a class="dp-btn btn btn-sm px-3" th:href="@{'/diagnosis/' + ${fileId}}">刷新</a>
+            <a class="dp-btn dp-btn-primary btn btn-sm px-3" href="/">上传/解析</a>
         </div>
     </div>
-    <div class="card shadow-sm mb-3">
-        <div class="card-header">修复建议（知识图谱）</div>
-        <ul class="list-group list-group-flush">
-            <li class="list-group-item" th:each="r : ${diagnosis.repairSuggestions}">
-                <div class="fw-semibold" th:text="${r.title}">title</div>
-                <div class="small text-muted" th:text="${r.repairCode}">code</div>
-                <pre class="small bg-light p-2 mt-2 mb-0" th:text="${r.steps}">steps</pre>
-            </li>
-        </ul>
+</nav>
+
+<div class="container dp-shell">
+    <div class="dp-card p-3 p-md-4 mb-4" th:if="${file != null}">
+        <div class="diagnosis-header">
+            <div>
+                <h3 class="mb-2" th:text="${fileName} ?: '未命名文件'">core.123</h3>
+                <div class="small text-muted" th:if="${filePath != null}">存储路径：<span th:text="${filePath}">/path/to/file</span></div>
+                <div class="small text-muted mt-1">当前环境：WSL2 Ubuntu GDB</div>
+                <div class="small text-muted mt-1" th:if="${fileHash != null}">文件哈希：<span th:text="${fileHash}">hash</span></div>
+            </div>
+            <div class="page-actions">
+                <span class="dp-badge"
+                      th:classappend="${fileStatus == 'PARSED' ? ' dp-badge--ok' : (fileStatus == 'PARSING' ? ' dp-badge--info' : (fileStatus == 'FAILED' ? ' dp-badge--danger' : ' dp-badge--warn'))}"
+                      th:text="${fileStatus}">PENDING</span>
+                <button class="dp-btn btn btn-sm px-3" type="button" onclick="retryParse()">重新解析</button>
+                <button class="dp-btn btn btn-sm px-3" type="button" onclick="deleteCurrentFile()">删除当前文件</button>
+            </div>
+        </div>
     </div>
-    <div class="d-flex gap-2">
-        <a class="btn btn-outline-secondary"
-           th:href="|/api/platform/report/${fileId}?fileType=${fileType}|">导出 Markdown</a>
-        <a class="btn btn-outline-secondary"
-           th:href="|/api/platform/report/${fileId}/pdf?fileType=${fileType}|">导出 PDF</a>
+
+    <div th:if="${fileStatus == 'FAILED'}" class="dp-card p-4 p-md-5 text-center mb-4">
+        <div class="text-danger" style="font-size: 3rem; line-height: 1;">!</div>
+        <h4 class="mt-3">解析失败</h4>
+        <p class="text-muted">请检查文件格式、WSL2 Ubuntu 中的 GDB 环境、当前 core 是否存在，以及是否为该 core 提供了匹配的原始可执行文件。</p>
+        <div class="alert alert-danger text-start mt-3 mb-0" th:if="${errorMessage != null and !errorMessage.isEmpty()}">
+            <div class="fw-semibold mb-2">失败原因</div>
+            <div th:text="${errorMessage}">解析错误信息</div>
+            <div class="small text-muted mt-2" th:if="${filePath != null}">文件路径：<span th:text="${filePath}">/path/to/file</span></div>
+        </div>
+        <div class="alert alert-warning text-start mt-3 mb-0">
+            <div class="fw-semibold mb-2">为什么会出现宽泛诊断</div>
+            <div class="small mb-2">如果关键栈帧大量显示为 <code>?? ()</code>，说明 GDB 没有拿到足够的符号信息。此时 AI 无法看到真实函数名，结论只能是兜底推测，不能视为可信根因。</div>
+            <div class="small mb-0">请在后端配置 <code>dpdk.collector.parse.program-path</code> 指向生成该 core 的原始 ELF 可执行文件，再重新解析。</div>
+        </div>
+    </div>
+
+    <div class="dp-card p-3 p-md-4" th:if="${diagnosis == null}">
+        <div class="h5 mb-2">暂无可用诊断结果</div>
+        <div class="small text-muted">需要先完成解析并生成标准化特征（状态为 <code>PARSED</code>）后，才会出现智能定位结果。</div>
+        <div class="mt-3 small text-muted">当前仅保留 WSL2 Ubuntu 运行环境，不再提供 Linux 虚拟机待接入选项。</div>
+    </div>
+
+    <div th:if="${diagnosis != null}">
+        <div class="dp-card p-3 p-md-4 mb-3">
+            <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+                <div>
+                    <div class="h4 mb-1" th:text="${diagnosis.faultName}">故障</div>
+                    <div class="d-flex gap-2 align-items-center flex-wrap">
+                        <span class="dp-badge dp-badge--info" th:text="${diagnosis.faultCode}">CODE</span>
+                        <span class="small text-muted">置信度 <span th:text="${#numbers.formatDecimal(diagnosis.confidence, 1, 4)}">0</span></span>
+                    </div>
+                </div>
+                <div class="d-flex gap-2 align-items-center flex-wrap">
+                    <div class="dp-seg" role="group" aria-label="视图切换">
+                        <button type="button" id="viewTextBtn" aria-pressed="true">文字概览</button>
+                        <button type="button" id="viewChartBtn" aria-pressed="false">图表视图</button>
+                    </div>
+                    <a class="dp-btn btn btn-sm px-3" th:href="|/api/platform/report/${fileId}?fileType=${fileType}|">导出 Markdown</a>
+                    <a class="dp-btn btn btn-sm px-3" th:href="|/api/platform/report/${fileId}/pdf?fileType=${fileType}|">导出 PDF</a>
+                </div>
+            </div>
+
+            <div class="summary-panel mt-4">
+                <div class="fw-semibold mb-2">AI 一键定位摘要</div>
+                <div class="mb-2" th:text="${diagnosis.summary}">summary</div>
+                <div class="small text-muted" th:text="${diagnosis.suspectedRootCause}">suspected root cause</div>
+            </div>
+
+            <div class="mt-4" id="textView">
+                <div class="dp-grid">
+                    <div class="dp-meta">
+                        <div class="h6 mb-3">案例匹配与根因提示</div>
+                        <div class="chip-list mb-3" th:if="${diagnosis.matchedCaseTags != null and !#lists.isEmpty(diagnosis.matchedCaseTags)}">
+                            <span class="dp-badge dp-badge--info" th:each="tag : ${diagnosis.matchedCaseTags}" th:text="${tag}">tag</span>
+                        </div>
+                        <ul class="mb-0 ps-3">
+                            <li class="mb-1" th:each="hint : ${diagnosis.rootCauseHints}" th:text="${hint}">hint</li>
+                        </ul>
+                    </div>
+                    <div class="dp-meta">
+                        <div class="h6 mb-3">提取到的异常信号</div>
+                        <div class="signal-list" th:if="${diagnosis.extractedSignals != null and !#lists.isEmpty(diagnosis.extractedSignals)}">
+                            <div class="signal-card" th:each="signal : ${diagnosis.extractedSignals}">
+                                <div class="small text-muted" th:text="${signal.label}">label</div>
+                                <div class="fw-semibold mt-1" th:text="${signal.value}">value</div>
+                                <div class="small text-muted mt-1">类型：<span th:text="${signal.type}">type</span> · 严重度：<span th:text="${signal.severity}">severity</span></div>
+                            </div>
+                        </div>
+                        <div class="small text-muted" th:if="${diagnosis.extractedSignals == null or #lists.isEmpty(diagnosis.extractedSignals)}">暂无异常信号。</div>
+                    </div>
+                </div>
+
+                <div class="dp-meta mt-3">
+                    <div class="h6 mb-3">建议排查路径</div>
+                    <div class="step-list">
+                        <div class="step-card" th:each="step : ${diagnosis.troubleshootingSteps}">
+                            <div class="fw-semibold"><span th:text="${step.order}">1</span>. <span th:text="${step.title}">title</span></div>
+                            <div class="small text-muted mt-2" th:text="${step.detail}">detail</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4" id="chartView" style="display:none;">
+                <div class="dp-grid">
+                    <div class="dp-chart-card">
+                        <div class="fw-semibold">分类分值分布</div>
+                        <div class="small text-muted mb-3">不同异常类型的 AI 匹配强度</div>
+                        <div th:if="${diagnosis.categoryScores != null and !#lists.isEmpty(diagnosis.categoryScores)}">
+                            <div class="score-row mb-2" th:each="score, scoreStat : ${diagnosis.categoryScores}">
+                                <div class="d-flex justify-content-between align-items-center gap-3">
+                                    <div>
+                                        <div class="fw-semibold">
+                                            <span th:text="${score.faultName}">fault</span>
+                                            <span class="dp-badge dp-badge--info ms-2" th:if="${scoreStat.index == 0}">当前命中</span>
+                                        </div>
+                                        <div class="small text-muted" th:text="${score.faultCode}">code</div>
+                                    </div>
+                                    <div class="small text-muted" th:text="${#numbers.formatDecimal(score.score, 1, 4)}">0.0</div>
+                                </div>
+                                <div class="score-bar"><span th:style="|width:${T(java.lang.Math).min(score.score * 12, 100)}%|"></span></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="dp-chart-card">
+                        <div class="fw-semibold">诊断要点概览</div>
+                        <div class="small text-muted">根因提示 / 修复建议 / 异常信号数量</div>
+                        <div class="mt-3" style="height: 240px;"><canvas id="summaryChart" aria-label="要点概览图表" role="img"></canvas></div>
+                    </div>
+                </div>
+
+                <div class="dp-chart-card mt-3">
+                    <div class="d-flex align-items-start justify-content-between gap-2 flex-wrap">
+                        <div>
+                            <div class="fw-semibold">特征向量截面（Combined Vector）</div>
+                            <div class="small text-muted">展示前 32 维，用于快速感知特征分布。</div>
+                        </div>
+                        <span class="small text-muted" id="vecMeta">—</span>
+                    </div>
+                    <div class="mt-3" style="height: 260px;"><canvas id="vectorChart" aria-label="特征向量图表" role="img"></canvas></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dp-card overflow-hidden mb-3">
+            <div class="p-3 p-md-4 border-bottom" style="border-color: rgba(16,24,40,.10) !important;">
+                <div class="h6 mb-1">修复建议（知识图谱）</div>
+                <div class="small text-muted">结合 DPDK 案例库给出修复建议与执行步骤。</div>
+            </div>
+            <div class="p-3 p-md-4" th:if="${diagnosis.repairSuggestions == null or #lists.isEmpty(diagnosis.repairSuggestions)}">
+                <div class="small text-muted">暂无建议。</div>
+            </div>
+            <div class="p-3 p-md-4" th:each="r : ${diagnosis.repairSuggestions}">
+                <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+                    <div>
+                        <div class="fw-semibold" th:text="${r.title}">title</div>
+                        <div class="small text-muted">修复码：<span th:text="${r.repairCode}">code</span></div>
+                    </div>
+                    <span class="dp-badge dp-badge--info">建议置信度 <span th:text="${#numbers.formatDecimal(r.confidence, 1, 2)}">0.0</span></span>
+                </div>
+                <pre class="small mt-3 mb-0" th:text="${r.steps}">steps</pre>
+            </div>
+        </div>
     </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script th:inline="javascript">
+    (function(){
+        var fileId = /*[[${fileId}]]*/ 0;
+        var textBtn = document.getElementById('viewTextBtn');
+        var chartBtn = document.getElementById('viewChartBtn');
+        var textView = document.getElementById('textView');
+        var chartView = document.getElementById('chartView');
+
+        window.retryParse = async function() {
+            try {
+                var res = await fetch('/ui/parse/' + fileId, { method: 'POST' });
+                var data = await res.json();
+                if (!res.ok || !data.success) throw new Error((data && data.error) || '重新解析失败');
+                window.location.href = data.diagnosisUrl;
+            } catch (err) {
+                alert('重新解析失败: ' + err.message);
+            }
+        };
+
+        window.deleteCurrentFile = async function() {
+            if (!confirm('确定删除当前文件吗？这会同时删除数据库记录、解析结果和存储文件。')) return;
+            try {
+                var res = await fetch('/ui/files/' + fileId, { method: 'DELETE' });
+                var data = await res.json();
+                if (!res.ok || !data.success) throw new Error((data && data.error) || '删除失败');
+                window.location.href = '/';
+            } catch (err) {
+                alert('删除失败: ' + err.message);
+            }
+        };
+
+        if (!textBtn || !chartBtn || !textView || !chartView) return;
+
+        var fileType = /*[[${fileType}]]*/ 'COREDUMP';
+        var charts = { summary: null, vector: null };
+        var loaded = false;
+
+        function setPressed(a, b){ a.setAttribute('aria-pressed','true'); b.setAttribute('aria-pressed','false'); }
+        function showText(){ setPressed(textBtn, chartBtn); textView.style.display = ''; chartView.style.display = 'none'; }
+        function showCharts(){ setPressed(chartBtn, textBtn); textView.style.display = 'none'; chartView.style.display = ''; if (!loaded) { loaded = true; loadAndRender(); } }
+        textBtn.addEventListener('click', showText);
+        chartBtn.addEventListener('click', showCharts);
+
+        function safeNum(x){ var n = Number(x); return isFinite(n) ? n : 0; }
+
+        function render(d){
+            var hints = (d && d.rootCauseHints && d.rootCauseHints.length) ? d.rootCauseHints.length : 0;
+            var repairs = (d && d.repairSuggestions && d.repairSuggestions.length) ? d.repairSuggestions.length : 0;
+            var signals = (d && d.extractedSignals && d.extractedSignals.length) ? d.extractedSignals.length : 0;
+            var vec = (d && d.featureSnapshot && Array.isArray(d.featureSnapshot.combinedVector)) ? d.featureSnapshot.combinedVector : [];
+
+            var vecMeta = document.getElementById('vecMeta');
+            if (vecMeta) vecMeta.textContent = '维度: ' + (vec.length || 0);
+
+            var ctx2 = document.getElementById('summaryChart');
+            var ctx3 = document.getElementById('vectorChart');
+            if (!ctx2 || !ctx3) return;
+
+            if (charts.summary) charts.summary.destroy();
+            charts.summary = new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                    labels: ['根因提示', '异常信号', '修复建议'],
+                    datasets: [{
+                        label: '数量',
+                        data: [hints, signals, repairs],
+                        backgroundColor: ['rgba(90,167,161,.55)', 'rgba(124,163,201,.45)', 'rgba(202,163,91,.42)'],
+                        borderColor: ['rgba(90,167,161,.9)', 'rgba(124,163,201,.7)', 'rgba(202,163,91,.8)'],
+                        borderWidth: 1,
+                        borderRadius: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: { beginAtZero: true }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            var take = 32;
+            var slice = vec.slice(0, take).map(function(x){ return safeNum(x); });
+            var labels = slice.map(function(_, i){ return String(i + 1); });
+            if (charts.vector) charts.vector.destroy();
+            charts.vector = new Chart(ctx3, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Combined',
+                        data: slice,
+                        backgroundColor: 'rgba(90,167,161,.22)',
+                        borderColor: 'rgba(90,167,161,.55)',
+                        borderWidth: 1,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { maxRotation: 0, autoSkip: true, grid: { display: false } },
+                        y: { grid: { color: 'rgba(16,24,40,.06)' } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        function loadAndRender(){
+            fetch('/api/platform/diagnose', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fileId: fileId, fileType: fileType })
+            })
+            .then(function(res){ if (!res.ok) throw new Error('diagnose http ' + res.status); return res.json(); })
+            .then(function(d){ render(d); })
+            .catch(function(){});
+        }
+    })();
+</script>
 </body>
 </html>

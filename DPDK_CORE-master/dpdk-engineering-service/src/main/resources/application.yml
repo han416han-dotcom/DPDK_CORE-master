@@ -2,7 +2,7 @@ spring:
   application:
     name: dpdk-fault-analysis-platform
   datasource:
-    url: jdbc:mysql://localhost:3306/dpdk_coredump?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://172.25.224.1:3306/dpdk_coredump?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
     username: root
     password: 123456
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -27,18 +27,21 @@ spring:
 
 file:
   storage:
-    path: D:\workspace\data\dpdk-collector
+    # 为了方便你当前在 WSL2 / Linux 本地做 crash_app + core 闭环测试，
+    # 先把上传落盘目录切到 Linux 本地目录。
+    path: /home/hnhyh/core_test/dpdk-collector/
     coredump-dir: coredumps/
     log-dir: logs/
     temp-dir: temp/
 
 scan:
-  enable: true
+  # 本地手工测试阶段先关闭自动扫描，避免继续扫 Windows 历史目录干扰测试。
+  enable: false
   interval: 30000
-  coredump-paths: F:/var/core,F:/tmp
-  log-paths: F:/var/log/dpdk,F:/opt/dpdk/app/logs
+  coredump-paths: /home/hnhyh/core_test
+  log-paths: /home/hnhyh/core_test/logs
   file-patterns:
-    coredump: "core.*"
+    coredump: "core*"
     log: "*.log"
 
 dpdk:
@@ -48,7 +51,11 @@ dpdk:
   collector:
     parse:
       # LOCAL_GDB / WSL2_GDB / REMOTE_SSH
-      backend: LOCAL_GDB
+      # 你当前 Java 就运行在 WSL2 / Linux 里时，也可以继续使用 WSL2_GDB，代码会自动直接走 Linux 本地 gdb。
+      backend: WSL2_GDB
+      # 默认回退 ELF。若 core 文件名类似 core_app_xxx_时间戳，系统会优先自动匹配同目录/上级目录下的 app_xxx。
+      # 自动匹配不到时，才会回退到这里配置的默认 ELF。
+      program-path: /home/hnhyh/core_test/crash_app
 
 server:
   port: 8080

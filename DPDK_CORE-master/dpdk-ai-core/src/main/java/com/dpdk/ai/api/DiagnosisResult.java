@@ -13,7 +13,13 @@ public class DiagnosisResult {
     String faultCode;
     String faultName;
     double confidence;
+    String summary;
+    String suspectedRootCause;
+    List<String> matchedCaseTags;
     List<String> rootCauseHints;
+    List<DiagnosisSignal> extractedSignals;
+    List<DiagnosisCategoryScore> categoryScores;
+    List<TroubleshootingStep> troubleshootingSteps;
     HybridFeatureSnapshot featureSnapshot;
     List<RepairSuggestion> repairSuggestions;
 }

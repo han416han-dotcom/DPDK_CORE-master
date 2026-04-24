@@ -14,8 +14,8 @@ public class Wsl2GdbCoredumpParser implements CoredumpParser {
     }
 
     @Override
-    public GdbParserUtil.GdbParseResult parse(File coreFile) throws Exception {
-        return WslGdbParserUtil.parseCoredumpViaWsl(coreFile);
+    public GdbParserUtil.GdbParseResult parse(File coreFile, String programPath) throws Exception {
+        return WslGdbParserUtil.parseCoredumpViaWsl(coreFile, programPath);
     }
 }
 
