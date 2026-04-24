@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>DPDK 故障分析平台</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"/>
+</head>
+<body class="bg-light">
+<nav class="navbar navbar-dark bg-dark mb-4">
+    <div class="container-fluid">
+        <span class="navbar-brand mb-0 h1">DPDK 故障分析平台</span>
+        <span class="text-secondary small">数据采集 · AI 核心 · 工程应用</span>
+    </div>
+</nav>
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <h2 class="h4 mb-0">Core 文件列表</h2>
+        <div class="d-flex align-items-center gap-2">
+            <input type="file" id="coredumpFileInput" class="d-none"/>
+            <button type="button" class="btn btn-primary btn-sm" id="coredumpUploadBtn">上传 Core 文件</button>
+            <span class="text-muted small" id="coredumpUploadMsg" aria-live="polite"></span>
+        </div>
+    </div>
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>文件名</th>
+                    <th>状态</th>
+                    <th>来源</th>
+                    <th>操作</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="f : ${files.content}">
+                    <td th:text="${f.id}">1</td>
+                    <td th:text="${f.fileName}">core</td>
+                    <td><span class="badge bg-secondary" th:text="${f.status}">PENDING</span></td>
+                    <td th:text="${f.sourceType}">MANUAL</td>
+                    <td>
+                        <form class="d-inline" th:action="@{'/ui/parse/' + ${f.id}}" method="post">
+                            <select class="form-select form-select-sm d-inline-block w-auto me-1" name="backend">
+                                <option value="LOCAL_GDB" selected>本机 GDB</option>
+                                <option value="WSL2_GDB">WSL2 GDB</option>
+                                <option value="REMOTE_SSH" disabled>Linux 虚拟机(待接入)</option>
+                            </select>
+                            <button type="submit" class="btn btn-sm btn-outline-primary">解析</button>
+                        </form>
+                        <a class="btn btn-sm btn-primary" th:href="@{'/diagnosis/' + ${f.id}}">智能定位</a>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer d-flex justify-content-between" th:if="${files.totalPages > 1}">
+            <a class="btn btn-sm btn-outline-secondary" th:if="${files.hasPrevious()}"
+               th:href="@{/(page=${files.number - 1})}">上一页</a>
+            <span class="small text-muted" th:text="${files.number + 1} + ' / ' + ${files.totalPages}">1 / 1</span>
+            <a class="btn btn-sm btn-outline-secondary" th:if="${files.hasNext()}"
+               th:href="@{/(page=${files.number + 1})}">下一页</a>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    var input = document.getElementById('coredumpFileInput');
+    var btn = document.getElementById('coredumpUploadBtn');
+    var msg = document.getElementById('coredumpUploadMsg');
+    if (!input || !btn) return;
+
+    btn.addEventListener('click', function () {
+        input.click();
+    });
+
+    input.addEventListener('change', function () {
+        if (!input.files || !input.files.length) return;
+        var file = input.files[0];
+        var fd = new FormData();
+        fd.append('file', file);
+        btn.disabled = true;
+        msg.textContent = '上传中…';
+        fetch('/api/collect/coredump', { method: 'POST', body: fd })
+            .then(function (res) {
+                return res.text().then(function (text) {
+                    return { ok: res.ok, status: res.status, text: text };
+                });
+            })
+            .then(function (r) {
+                if (r.ok) {
+                    msg.textContent = '';
+                    window.location.reload();
+                    return;
+                }
+                msg.textContent = '';
+                alert(r.status === 400 ? r.text : ('上传失败 (' + r.status + '): ' + r.text));
+            })
+            .catch(function (e) {
+                msg.textContent = '';
+                alert('上传失败: ' + (e && e.message ? e.message : String(e)));
+            })
+            .finally(function () {
+                btn.disabled = false;
+                input.value = '';
+            });
+    });
+})();
+</script>
+</body>
+</html>

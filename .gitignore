@@ -1,0 +1,4 @@
+# Project exclude paths
+/DPDK_CORE-master/dpdk-ai-core/target/
+/DPDK_CORE-master/dpdk-coredump-collector/target/
+/DPDK_CORE-master/dpdk-engineering-service/target/
