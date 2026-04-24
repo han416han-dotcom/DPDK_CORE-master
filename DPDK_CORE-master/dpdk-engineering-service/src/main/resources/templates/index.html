@@ -5,82 +5,366 @@
     <title>DPDK 故障分析平台</title>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"/>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root{
+            /* Low-saturation, light theme tokens */
+            --dp-bg: #f6f7fb;
+            --dp-bg-2: #ffffff;
+            --dp-surface: rgba(255,255,255,.86);
+            --dp-surface-2: rgba(255,255,255,.94);
+            --dp-stroke: rgba(16,24,40,.10);
+            --dp-text: rgba(16,24,40,.92);
+            --dp-muted: rgba(16,24,40,.70);
+            --dp-faint: rgba(16,24,40,.50);
+            --dp-primary: #5aa7a1;     /* muted teal */
+            --dp-primary-2: #7bbfb9;   /* softer teal */
+            --dp-danger: #c76666;
+            --dp-warning: #caa35b;
+            --dp-ok: #5f9a78;
+            --dp-radius-lg: 18px;
+            --dp-radius-md: 14px;
+            --dp-radius-sm: 10px;
+            --dp-shadow-1: 0 10px 30px rgba(16,24,40,.08);
+            --dp-shadow-2: 0 18px 60px rgba(16,24,40,.10);
+            --dp-focus: 0 0 0 .2rem rgba(90,167,161,.20);
+            --dp-space: 10px;
+            color-scheme: light;
+        }
+        @media (prefers-reduced-motion: reduce){
+            *{ transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+        }
+        body{
+            font-family: "Plus Jakarta Sans", ui-sans-serif, -apple-system, "Segoe UI", "Helvetica Neue", sans-serif;
+            background:
+                radial-gradient(1000px 520px at 10% 0%, rgba(90,167,161,.12), transparent 60%),
+                radial-gradient(900px 520px at 90% 0%, rgba(124,163,201,.10), transparent 60%),
+                linear-gradient(180deg, rgba(255,255,255,.85), rgba(246,247,251,1));
+            color: var(--dp-text);
+            text-wrap: pretty;
+        }
+        .dp-shell{ max-width: 1200px; }
+        .dp-topbar{
+            background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,.55));
+            border-bottom: 1px solid var(--dp-stroke);
+            backdrop-filter: blur(10px);
+        }
+        .dp-brand{
+            letter-spacing: .2px;
+            font-weight: 700;
+            color: var(--dp-text);
+        }
+        .dp-subtitle{ color: var(--dp-muted); }
+        .dp-card{
+            background: linear-gradient(180deg, var(--dp-surface), var(--dp-surface-2));
+            border: 1px solid var(--dp-stroke);
+            border-radius: var(--dp-radius-lg);
+            box-shadow: var(--dp-shadow-1);
+        }
+        .dp-card--flat{ box-shadow: none; }
+        .dp-pill{
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            border: 1px solid var(--dp-stroke);
+            background: rgba(255,255,255,.72);
+            color: var(--dp-muted);
+            font-size: 13px;
+        }
+        .dp-btn{
+            border-radius: 12px;
+            border: 1px solid var(--dp-stroke);
+            background: rgba(255,255,255,.78);
+            color: var(--dp-text);
+            transition: transform .12s ease, background .12s ease, border-color .12s ease;
+        }
+        .dp-btn:hover{ transform: translateY(-1px); background: rgba(255,255,255,.92); border-color: rgba(16,24,40,.16); }
+        .dp-btn:active{ transform: translateY(0); }
+        .dp-btn:focus-visible{ outline: none; box-shadow: var(--dp-focus); }
+        .dp-btn-primary{
+            background: linear-gradient(180deg, rgba(90,167,161,.22), rgba(90,167,161,.12));
+            border-color: rgba(90,167,161,.32);
+        }
+        .dp-btn-primary:hover{ background: linear-gradient(180deg, rgba(90,167,161,.28), rgba(90,167,161,.16)); }
+        .dp-input, .dp-select{
+            border-radius: 12px !important;
+            border: 1px solid var(--dp-stroke) !important;
+            background: rgba(255,255,255,.85) !important;
+            color: var(--dp-text) !important;
+        }
+        .dp-input::placeholder{ color: rgba(16,24,40,.45); }
+        .dp-input:focus, .dp-select:focus{ box-shadow: var(--dp-focus) !important; }
+        .dp-table{
+            color: var(--dp-text);
+            --bs-table-bg: transparent;
+            --bs-table-color: var(--dp-text);
+            --bs-table-border-color: rgba(255,255,255,.08);
+        }
+        .dp-table thead th{
+            position: sticky;
+            top: 0;
+            background: rgba(246,247,251,.92);
+            backdrop-filter: blur(10px);
+            z-index: 1;
+            color: var(--dp-muted);
+            font-weight: 600;
+            border-bottom: 1px solid rgba(16,24,40,.10);
+        }
+        .dp-kbd{
+            font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+            border: 1px solid rgba(16,24,40,.14);
+            background: rgba(255,255,255,.80);
+            border-radius: 8px;
+            padding: 2px 8px;
+            color: var(--dp-text);
+            font-size: 12px;
+        }
+        .dp-badge{
+            border-radius: 999px;
+            padding: 6px 10px;
+            border: 1px solid rgba(16,24,40,.10);
+            background: rgba(255,255,255,.72);
+            color: var(--dp-muted);
+            font-weight: 600;
+            font-size: 12px;
+        }
+        .dp-badge--ok{ border-color: rgba(95,154,120,.28); background: rgba(95,154,120,.10); color: rgba(16,24,40,.92); }
+        .dp-badge--warn{ border-color: rgba(202,163,91,.28); background: rgba(202,163,91,.10); color: rgba(16,24,40,.92); }
+        .dp-badge--danger{ border-color: rgba(199,102,102,.26); background: rgba(199,102,102,.10); color: rgba(16,24,40,.92); }
+        .dp-badge--info{ border-color: rgba(90,167,161,.28); background: rgba(90,167,161,.10); color: rgba(16,24,40,.92); }
+
+        .dp-drop{
+            border: 1.5px dashed rgba(16,24,40,.18);
+            border-radius: var(--dp-radius-md);
+            background: rgba(255,255,255,.72);
+            padding: 14px 14px;
+            transition: background .12s ease, border-color .12s ease, transform .12s ease;
+        }
+        .dp-drop[data-over="1"]{ background: rgba(90,167,161,.12); border-color: rgba(90,167,161,.32); transform: translateY(-1px); }
+        .dp-muted{ color: var(--dp-muted) !important; }
+        .dp-faint{ color: var(--dp-faint) !important; }
+        .dp-link{ color: rgba(70,130,125,.95); text-decoration: none; }
+        .dp-link:hover{ text-decoration: underline; }
+        .toast-container{ z-index: 1080; }
+
+        /* Responsive: keep everything visible */
+        .dp-topbar{ position: sticky; top: 0; z-index: 20; }
+        .dp-drop{ cursor: pointer; }
+        @media (max-width: 991.98px){
+            .dp-shell{ padding-left: 12px; padding-right: 12px; }
+        }
+        @media (max-width: 575.98px){
+            .dp-pill{ width: 100%; justify-content: space-between; }
+            #pickedFileMeta{ max-width: 60vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .dp-table thead th{ position: static; }
+        }
+    </style>
 </head>
-<body class="bg-light">
-<nav class="navbar navbar-dark bg-dark mb-4">
-    <div class="container-fluid">
-        <span class="navbar-brand mb-0 h1">DPDK 故障分析平台</span>
-        <span class="text-secondary small">数据采集 · AI 核心 · 工程应用</span>
+<body>
+<nav class="dp-topbar py-3 mb-4">
+    <div class="container dp-shell d-flex align-items-center justify-content-between gap-3 flex-wrap">
+        <div class="d-flex flex-column">
+            <div class="dp-brand h5 mb-1">DPDK 故障分析平台</div>
+            <div class="dp-subtitle small">数据采集 · AI 核心 · 工程应用</div>
+        </div>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+            <span class="dp-pill">
+                <span class="dp-faint">提示</span>
+                <span>上传后可在列表选择解析后端进行解析</span>
+            </span>
+            <a class="dp-link small" href="/api/platform/repairs/EXAMPLE" onclick="return false;" aria-disabled="true"> </a>
+        </div>
     </div>
 </nav>
-<div class="container">
-    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-        <h2 class="h4 mb-0">Core 文件列表</h2>
-        <div class="d-flex align-items-center gap-2">
-            <input type="file" id="coredumpFileInput" class="d-none"/>
-            <button type="button" class="btn btn-primary btn-sm" id="coredumpUploadBtn">上传 Core 文件</button>
-            <span class="text-muted small" id="coredumpUploadMsg" aria-live="polite"></span>
+
+<div class="container dp-shell">
+    <div class="row g-3 align-items-stretch">
+        <div class="col-12 col-lg-4">
+            <div class="dp-card p-3 p-md-4 h-100">
+                <div class="d-flex align-items-start justify-content-between gap-3">
+                    <div>
+                        <div class="h5 mb-1">上传 Core 文件</div>
+                        <div class="dp-muted small">支持大文件上传。建议文件名保持原始命名，便于追溯。</div>
+                    </div>
+                    <span class="dp-kbd">/api/collect/coredump</span>
+                </div>
+
+                <div class="mt-3 dp-drop" id="dropZone" role="button" tabindex="0" aria-label="拖拽文件到此处上传，或点击选择文件">
+                    <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap">
+                        <div>
+                            <div class="fw-semibold">拖拽到此处</div>
+                            <div class="dp-muted small">或点击选择文件</div>
+                        </div>
+                        <div class="d-flex gap-2 align-items-center">
+                            <input type="file" id="coredumpFileInput" class="d-none" />
+                            <button type="button" class="dp-btn dp-btn-primary btn btn-sm px-3" id="coredumpUploadBtn">
+                                选择文件
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mt-3 d-flex align-items-center justify-content-between gap-2">
+                        <div class="small dp-muted" id="pickedFileMeta">未选择文件</div>
+                        <div class="small dp-faint">最大 500MB</div>
+                    </div>
+                </div>
+
+                <div class="mt-3 d-flex align-items-center gap-2">
+                    <button type="button" class="dp-btn btn btn-sm px-3" id="uploadNowBtn" disabled>上传</button>
+                    <span class="small dp-muted" id="coredumpUploadMsg" aria-live="polite"></span>
+                </div>
+
+                <div class="mt-3 small dp-faint">
+                    如果上传失败且状态码为 500，通常是目录权限或临时文件问题；现在已在后端避免重复 <code>transferTo</code>。
+                </div>
+            </div>
         </div>
-    </div>
-    <div class="card shadow-sm">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead class="table-light">
-                <tr>
-                    <th>ID</th>
-                    <th>文件名</th>
-                    <th>状态</th>
-                    <th>来源</th>
-                    <th>操作</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr th:each="f : ${files.content}">
-                    <td th:text="${f.id}">1</td>
-                    <td th:text="${f.fileName}">core</td>
-                    <td><span class="badge bg-secondary" th:text="${f.status}">PENDING</span></td>
-                    <td th:text="${f.sourceType}">MANUAL</td>
-                    <td>
-                        <form class="d-inline" th:action="@{'/ui/parse/' + ${f.id}}" method="post">
-                            <select class="form-select form-select-sm d-inline-block w-auto me-1" name="backend">
-                                <option value="LOCAL_GDB" selected>本机 GDB</option>
-                                <option value="WSL2_GDB">WSL2 GDB</option>
-                                <option value="REMOTE_SSH" disabled>Linux 虚拟机(待接入)</option>
-                            </select>
-                            <button type="submit" class="btn btn-sm btn-outline-primary">解析</button>
-                        </form>
-                        <a class="btn btn-sm btn-primary" th:href="@{'/diagnosis/' + ${f.id}}">智能定位</a>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
-        <div class="card-footer d-flex justify-content-between" th:if="${files.totalPages > 1}">
-            <a class="btn btn-sm btn-outline-secondary" th:if="${files.hasPrevious()}"
-               th:href="@{/(page=${files.number - 1})}">上一页</a>
-            <span class="small text-muted" th:text="${files.number + 1} + ' / ' + ${files.totalPages}">1 / 1</span>
-            <a class="btn btn-sm btn-outline-secondary" th:if="${files.hasNext()}"
-               th:href="@{/(page=${files.number + 1})}">下一页</a>
+
+        <div class="col-12 col-lg-8">
+            <div class="dp-card p-0 overflow-hidden">
+                    <div class="p-3 p-md-4 border-bottom" style="border-color: rgba(16,24,40,.10) !important;">
+                    <div class="d-flex align-items-end justify-content-between gap-3 flex-wrap">
+                        <div>
+                            <div class="h5 mb-1">Core 文件列表</div>
+                            <div class="dp-muted small">查看上传记录、解析状态、失败原因，并选择解析后端。</div>
+                        </div>
+                        <div class="d-flex gap-2 align-items-center flex-wrap">
+                            <input class="form-control form-control-sm dp-input" id="tableFilter" placeholder="筛选：文件名 / 状态 / 来源" aria-label="筛选列表" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 dp-table" id="fileTable">
+                        <thead>
+                        <tr>
+                            <th style="width: 80px;">ID</th>
+                            <th>文件名</th>
+                            <th style="width: 120px;">状态</th>
+                            <th style="width: 140px;">来源</th>
+                            <th style="width: 220px;">操作</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:if="${files.content == null or #lists.isEmpty(files.content)}">
+                            <td colspan="5" class="p-4">
+                                <div class="dp-card dp-card--flat p-4" style="background: rgba(255,255,255,.80);">
+                                    <div class="h6 mb-1">暂无文件</div>
+                                    <div class="dp-muted small mb-3">从左侧上传 Core 文件后，这里会出现记录。</div>
+                                    <button class="dp-btn btn btn-sm px-3" type="button" onclick="document.getElementById('coredumpUploadBtn').click()">立即上传</button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr th:each="f : ${files.content}">
+                            <td th:text="${f.id}">1</td>
+                            <td>
+                                <div class="fw-semibold" th:text="${f.fileName}">core</div>
+                                <div class="small dp-muted" th:if="${f.errorMessage != null and !#strings.isEmpty(f.errorMessage)}">
+                                    失败原因：<span th:text="${f.errorMessage}">error</span>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="dp-badge"
+                                      th:classappend="${f.status == 'PARSED' ? ' dp-badge--ok' : (f.status == 'PARSING' ? ' dp-badge--info' : (f.status == 'FAILED' ? ' dp-badge--danger' : ' dp-badge--warn'))}"
+                                      th:text="${f.status}">PENDING</span>
+                            </td>
+                            <td class="dp-muted" th:text="${f.sourceType}">MANUAL</td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    <form class="d-inline m-0" th:action="@{'/ui/parse/' + ${f.id}}" method="post">
+                                        <select class="form-select form-select-sm dp-select d-inline-block w-auto" name="backend" aria-label="选择解析后端">
+                                            <option value="LOCAL_GDB" selected>本机 GDB</option>
+                                            <option value="WSL2_GDB">WSL2 GDB</option>
+                                            <option value="REMOTE_SSH" disabled>Linux 虚拟机(待接入)</option>
+                                        </select>
+                                        <button type="submit" class="dp-btn btn btn-sm px-3">解析</button>
+                                    </form>
+                                    <a class="dp-btn dp-btn-primary btn btn-sm px-3" th:href="@{'/diagnosis/' + ${f.id}}">智能定位</a>
+                                </div>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="p-3 p-md-4 d-flex justify-content-between align-items-center"
+                     th:if="${files.totalPages > 1}"
+                     style="border-top: 1px solid rgba(16,24,40,.10);">
+                    <a class="dp-btn btn btn-sm px-3" th:if="${files.hasPrevious()}"
+                       th:href="@{/(page=${files.number - 1})}">上一页</a>
+                    <span class="small dp-muted" th:text="${files.number + 1} + ' / ' + ${files.totalPages}">1 / 1</span>
+                    <a class="dp-btn btn btn-sm px-3" th:if="${files.hasNext()}"
+                       th:href="@{/(page=${files.number + 1})}">下一页</a>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
+<div class="toast-container position-fixed bottom-0 end-0 p-3" aria-live="polite" aria-atomic="true">
+    <div id="toast" class="toast text-bg-dark border-0" role="status">
+        <div class="d-flex">
+            <div class="toast-body" id="toastBody"> </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="关闭"></button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 (function () {
     var input = document.getElementById('coredumpFileInput');
     var btn = document.getElementById('coredumpUploadBtn');
     var msg = document.getElementById('coredumpUploadMsg');
+    var uploadNowBtn = document.getElementById('uploadNowBtn');
+    var meta = document.getElementById('pickedFileMeta');
+    var filter = document.getElementById('tableFilter');
+    var drop = document.getElementById('dropZone');
+    var toastEl = document.getElementById('toast');
+    var toastBody = document.getElementById('toastBody');
+    var toast = null;
     if (!input || !btn) return;
+
+    function fmtBytes(n){
+        if (typeof n !== 'number' || !isFinite(n)) return '';
+        var u = ['B','KB','MB','GB'];
+        var i = 0;
+        while (n >= 1024 && i < u.length - 1){ n = n / 1024; i++; }
+        return (Math.round(n * 10) / 10) + ' ' + u[i];
+    }
+
+    function showToast(text){
+        try{
+            if (!toastEl) return alert(text);
+            toastBody.textContent = text;
+            if (!toast) toast = bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 3800 });
+            toast.show();
+        }catch(e){
+            alert(text);
+        }
+    }
+
+    function setPickedFile(file){
+        if (!file){
+            meta.textContent = '未选择文件';
+            uploadNowBtn.disabled = true;
+            return;
+        }
+        meta.textContent = file.name + ' · ' + fmtBytes(file.size);
+        uploadNowBtn.disabled = false;
+    }
 
     btn.addEventListener('click', function () {
         input.click();
     });
 
-    input.addEventListener('change', function () {
-        if (!input.files || !input.files.length) return;
-        var file = input.files[0];
+    function doUpload(file){
+        if (!file) return;
         var fd = new FormData();
         fd.append('file', file);
         btn.disabled = true;
+        uploadNowBtn.disabled = true;
         msg.textContent = '上传中…';
         fetch('/api/collect/coredump', { method: 'POST', body: fd })
             .then(function (res) {
@@ -95,17 +379,73 @@
                     return;
                 }
                 msg.textContent = '';
-                alert(r.status === 400 ? r.text : ('上传失败 (' + r.status + '): ' + r.text));
+                showToast(r.status === 400 ? r.text : ('上传失败 (' + r.status + '): ' + r.text));
             })
             .catch(function (e) {
                 msg.textContent = '';
-                alert('上传失败: ' + (e && e.message ? e.message : String(e)));
+                showToast('上传失败: ' + (e && e.message ? e.message : String(e)));
             })
             .finally(function () {
                 btn.disabled = false;
+                uploadNowBtn.disabled = !input.files || !input.files.length;
                 input.value = '';
+                setPickedFile(null);
             });
+    }
+
+    input.addEventListener('change', function () {
+        if (!input.files || !input.files.length) return;
+        setPickedFile(input.files[0]);
     });
+
+    if (uploadNowBtn){
+        uploadNowBtn.addEventListener('click', function(){
+            if (!input.files || !input.files.length) return;
+            doUpload(input.files[0]);
+        });
+    }
+
+    if (drop){
+        function prevent(e){ e.preventDefault(); e.stopPropagation(); }
+        ['dragenter','dragover','dragleave','drop'].forEach(function(evt){
+            drop.addEventListener(evt, prevent);
+        });
+        drop.addEventListener('dragenter', function(){ drop.dataset.over = '1'; });
+        drop.addEventListener('dragover', function(){ drop.dataset.over = '1'; });
+        drop.addEventListener('dragleave', function(){ drop.dataset.over = '0'; });
+        drop.addEventListener('drop', function(e){
+            drop.dataset.over = '0';
+            var dt = e.dataTransfer;
+            if (!dt || !dt.files || !dt.files.length) return;
+            var f = dt.files[0];
+            try{
+                var data = new DataTransfer();
+                data.items.add(f);
+                input.files = data.files;
+            }catch(err){
+                // fallback: cannot programmatically set input.files
+            }
+            setPickedFile(f);
+        });
+        drop.addEventListener('click', function(){ btn.click(); });
+        drop.addEventListener('keydown', function(e){
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); btn.click(); }
+        });
+    }
+
+    if (filter){
+        filter.addEventListener('input', function(){
+            var q = (filter.value || '').trim().toLowerCase();
+            var table = document.getElementById('fileTable');
+            if (!table) return;
+            var rows = table.querySelectorAll('tbody tr');
+            rows.forEach(function(tr){
+                if (tr.querySelector('td[colspan]')) return;
+                var text = (tr.textContent || '').toLowerCase();
+                tr.style.display = q && text.indexOf(q) === -1 ? 'none' : '';
+            });
+        });
+    }
 })();
 </script>
 </body>

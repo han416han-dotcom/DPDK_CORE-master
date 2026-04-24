@@ -49,9 +49,11 @@ public class DashboardController {
     }
 
     @GetMapping("/diagnosis/{id}")
+    @SuppressWarnings("null")
     public String diagnosis(Model model,
                             @PathVariable Long id,
                             @RequestParam(defaultValue = "COREDUMP") String type) {
+        coredumpFileRepository.findById(id).ifPresent(f -> model.addAttribute("file", f));
         Optional<DiagnosisResult> r = faultAnalysisEngine.diagnose(id, type);
         model.addAttribute("fileId", id);
         model.addAttribute("fileType", type);

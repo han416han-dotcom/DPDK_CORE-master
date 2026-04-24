@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "clean-code": {
+      "source": "AbsolutelySkilled/AbsolutelySkilled",
+      "sourceType": "github",
+      "computedHash": "273f7407701ec13af7b50b1ad0db46921c76fd3ec933c539c9358a1d4a6db36f"
+    }
+  }
+}
