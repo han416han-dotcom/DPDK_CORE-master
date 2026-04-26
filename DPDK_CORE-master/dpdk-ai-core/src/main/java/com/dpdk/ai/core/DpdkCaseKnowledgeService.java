@@ -38,8 +38,8 @@ public class DpdkCaseKnowledgeService {
         applyMbufCaseRules(normalizedText, topFrame, mergedScores, caseTags, signals);
         applyThreadContentionRules(feature, normalizedText, topFrame, mergedScores, caseTags, signals);
         applyDriverCaseRules(normalizedText, topFrame, mergedScores, caseTags, signals);
-        applyEalRules(feature, normalizedText, topFrame, mergedScores, caseTags, signals);
-        applyConfigRules(feature, normalizedText, topFrame, mergedScores, caseTags, signals);
+        applyEalRules(normalizedText, topFrame, mergedScores, caseTags, signals);
+        applyConfigRules(normalizedText, topFrame, mergedScores, caseTags, signals);
 
         FaultCategory finalTopCategory = mergedScores.entrySet().stream()
                 .max(Comparator.comparingDouble(Map.Entry::getValue))
@@ -82,35 +82,69 @@ public class DpdkCaseKnowledgeService {
 
     public List<String> buildRootCauseHints(DpdkDiagnosisContext context) {
         List<String> hints = new ArrayList<>();
-        hints.add(context.getTopCategory().getDescription());
+        ParsedFeature feature = context.getParsedFeature();
+
+        hints.add(buildCategoryHeadline(context));
+
+        if (feature.getCrashSignal() != null && !feature.getCrashSignal().isBlank()) {
+            hints.add("崩溃信号: " + feature.getCrashSignal());
+        }
+        if (feature.getCrashAddress() != null && !feature.getCrashAddress().isBlank()) {
+            hints.add("崩溃地址: " + feature.getCrashAddress());
+        }
+
+        String topFrame = firstMeaningfulFrame(context.getStackFrames());
+        if (topFrame != null) {
+            hints.add("首个有效栈帧: " + topFrame);
+        }
+
         if (!context.getMatchedCaseTags().isEmpty()) {
             hints.add("匹配案例: " + String.join(" / ", context.getMatchedCaseTags()));
         }
-        hints.addAll(context.getExtractedSignals().stream().limit(6).toList());
+
+        hints.addAll(context.getExtractedSignals().stream()
+                .filter(signal -> signal != null && !signal.isBlank())
+                .distinct()
+                .limit(5)
+                .toList());
         return hints;
     }
 
     public String buildSummary(DpdkDiagnosisContext context) {
+        ParsedFeature feature = context.getParsedFeature();
+        String signal = feature.getCrashSignal() == null ? "未知信号" : feature.getCrashSignal();
+        String topFrame = firstMeaningfulFrame(context.getStackFrames());
+        String frameSummary = topFrame == null ? "当前未提取到可读函数名" : "首个有效栈帧为 " + topFrame;
+
         return switch (context.getTopCategory()) {
-            case MEMORY_FAULT -> "AI 已识别为内存访问异常，重点关注空指针、越界访问、释放后继续访问等问题。";
-            case MBUF_FAULT -> "AI 已识别为 mbuf / mempool 生命周期异常，重点检查分配、释放、引用计数和跨队列传递。";
-            case THREAD_CONTENTION_FAULT -> "AI 已识别为多核线程资源竞争，重点检查 lcore 共享资源、队列并发和锁争用路径。";
-            case DRIVER_PMD_FAULT -> "AI 已识别为驱动 / PMD / 设备适配异常，重点检查网卡驱动绑定、PMD 初始化和设备能力匹配。";
-            case EAL_INIT_FAULT -> "AI 已识别为 EAL / hugepage / NUMA 初始化异常，重点检查启动参数、内存页和设备绑定。";
-            case CONFIG_FAULT -> "AI 已识别为配置参数类异常，重点检查端口、队列、核绑定和启动参数。";
-            default -> "AI 已提取到异常特征，但当前案例匹配度不足，建议结合调用栈和日志继续排查。";
+            case MEMORY_FAULT -> "AI 将本次问题归类为内存访问异常，崩溃信号为 " + signal + "，" + frameSummary + "，优先排查空指针、越界访问和释放后继续访问。";
+            case MBUF_FAULT -> "AI 将本次问题归类为 mbuf / mempool 生命周期异常，崩溃信号为 " + signal + "，" + frameSummary + "，建议重点检查分配、释放、引用计数和队列回收路径。";
+            case THREAD_CONTENTION_FAULT -> "AI 将本次问题归类为多核线程资源竞争，崩溃信号为 " + signal + "，" + frameSummary + "，建议重点检查共享 ring、锁和原子操作路径。";
+            case DRIVER_PMD_FAULT -> "AI 将本次问题归类为驱动 / PMD / 设备适配异常，崩溃信号为 " + signal + "，" + frameSummary + "，建议核对驱动绑定、端口能力与初始化流程。";
+            case EAL_INIT_FAULT -> "AI 将本次问题归类为 EAL / hugepage / NUMA 初始化异常，崩溃信号为 " + signal + "，" + frameSummary + "，建议检查 hugepage、socket-mem 和环境可见性。";
+            case CONFIG_FAULT -> "AI 将本次问题归类为配置参数异常，崩溃信号为 " + signal + "，" + frameSummary + "，建议检查端口、队列、RSS 和启动参数。";
+            default -> "AI 已提取到部分异常特征，但当前案例匹配度不足。" + frameSummary + "，建议补充正确 ELF、完整日志和更完整的栈信息后重试。";
         };
     }
 
     public String buildSuspectedRootCause(DpdkDiagnosisContext context) {
+        ParsedFeature feature = context.getParsedFeature();
+        String topFrame = firstMeaningfulFrame(context.getStackFrames());
+        String frameHint = topFrame == null ? "当前没有可靠函数名" : "栈顶首先落在 " + topFrame;
+
         return switch (context.getTopCategory()) {
-            case MEMORY_FAULT -> "疑似根因：非法地址访问、空指针解引用、已释放对象再次访问，或 memcpy / 指针运算导致内存破坏。";
-            case MBUF_FAULT -> "疑似根因：mbuf 重复释放、mempool 耗尽、引用计数错误、跨线程传递不当，或 TX/RX 队列回收不完整。";
-            case THREAD_CONTENTION_FAULT -> "疑似根因：多个 lcore 并发访问共享 ring / mempool / 队列，缺少同步或使用了错误的单生产者/单消费者模式。";
-            case DRIVER_PMD_FAULT -> "疑似根因：PMD 驱动与设备能力不匹配、驱动绑定冲突、设备初始化顺序错误，或 link/queue 配置与硬件不兼容。";
-            case EAL_INIT_FAULT -> "疑似根因：EAL 参数错误、hugepage 不足、NUMA 绑定不匹配、PCI 绑定失败，或 WSL2/Linux 环境下设备不可见。";
-            case CONFIG_FAULT -> "疑似根因：启动参数、端口配置、核绑定、队列数量或 RSS/NUMA 参数设置不合理。";
-            default -> "疑似根因：当前异常特征不足以准确归类，建议补充可执行文件符号、完整日志和 core 关联场景。";
+            case MEMORY_FAULT -> "疑似根因：非法地址访问、空指针解引用、已释放对象再次访问，或 memcpy / 指针运算导致内存破坏。" + frameHint + "，请优先核对对象生命周期与边界检查。";
+            case MBUF_FAULT -> "疑似根因：mbuf 重复释放、mempool 耗尽、引用计数错误、跨线程传递不当，或 TX/RX 队列回收不完整。" + frameHint + "，请重点检查 mbuf alloc/free 配对。";
+            case THREAD_CONTENTION_FAULT -> "疑似根因：多个 lcore 并发访问共享 ring / mempool / 队列，缺少同步或使用了错误的单生产者/单消费者模式。" + frameHint + "，请检查并发模型与锁粒度。";
+            case DRIVER_PMD_FAULT -> "疑似根因：PMD 驱动与设备能力不匹配、驱动绑定冲突、设备初始化顺序错误，或 link/queue 配置与硬件不兼容。" + frameHint + "。";
+            case EAL_INIT_FAULT -> "疑似根因：EAL 参数错误、hugepage 不足、NUMA 绑定不匹配、PCI 绑定失败，或 WSL2/Linux 环境下设备不可见。" + frameHint + "。";
+            case CONFIG_FAULT -> "疑似根因：启动参数、端口配置、核绑定、队列数量或 RSS/NUMA 参数设置不合理。" + frameHint + "。";
+            default -> {
+                if (feature.getCrashSignal() != null && feature.getCrashSignal().equalsIgnoreCase("SIGFPE")) {
+                    yield "疑似根因：算术异常，例如除零、非法取模或浮点运算错误。当前分类信号不足，但崩溃信号已明确指向 SIGFPE，请优先检查涉及除法和取模的代码路径。";
+                }
+                yield "疑似根因：当前异常特征不足以准确归类，建议补充匹配的 ELF、完整日志和 core 关联场景。" + frameHint + "。";
+            }
         };
     }
 
@@ -245,7 +279,7 @@ public class DpdkCaseKnowledgeService {
         }
     }
 
-    private void applyEalRules(ParsedFeature feature, String text, String topFrame, EnumMap<FaultCategory, Double> scores, Set<String> tags, Set<String> signals) {
+    private void applyEalRules(String text, String topFrame, EnumMap<FaultCategory, Double> scores, Set<String> tags, Set<String> signals) {
         int ealHits = countAny(text, "rte_eal", "eal", "hugepage", "socket-mem", "numa", "file-prefix", "cannot init memory", "cannot reserve memory");
         if (ealHits > 0) {
             bump(scores, FaultCategory.EAL_INIT_FAULT, 1.3 + ealHits * 0.4);
@@ -262,7 +296,7 @@ public class DpdkCaseKnowledgeService {
         }
     }
 
-    private void applyConfigRules(ParsedFeature feature, String text, String topFrame, EnumMap<FaultCategory, Double> scores, Set<String> tags, Set<String> signals) {
+    private void applyConfigRules(String text, String topFrame, EnumMap<FaultCategory, Double> scores, Set<String> tags, Set<String> signals) {
         int configHits = countAny(text, "invalid", "unsupported", "failed", "parameter", "config", "option", "queue", "port", "rss", "mtu");
         if (configHits > 0) {
             bump(scores, FaultCategory.CONFIG_FAULT, 1.0 + configHits * 0.25);
@@ -289,6 +323,35 @@ public class DpdkCaseKnowledgeService {
 
     private static void bump(EnumMap<FaultCategory, Double> scores, FaultCategory category, double delta) {
         scores.merge(category, delta, Double::sum);
+    }
+
+    private String buildCategoryHeadline(DpdkDiagnosisContext context) {
+        ParsedFeature feature = context.getParsedFeature();
+        String signal = feature.getCrashSignal();
+        return switch (context.getTopCategory()) {
+            case MEMORY_FAULT -> signal != null && signal.equalsIgnoreCase("SIGABRT")
+                    ? "更接近内存破坏或主动 abort 触发的异常终止，而不是普通空指针访问。"
+                    : "更接近非法地址访问、空指针解引用或越界写导致的内存故障。";
+            case MBUF_FAULT -> "更接近 mbuf / mempool 生命周期问题，例如重复释放、引用计数错误或回收路径不完整。";
+            case THREAD_CONTENTION_FAULT -> "更接近多线程竞争或共享资源访问模型不匹配，而不是单点内存访问错误。";
+            case DRIVER_PMD_FAULT -> "更接近 PMD 驱动、设备初始化或硬件能力适配问题。";
+            case EAL_INIT_FAULT -> "更接近 EAL、hugepage、NUMA 或运行环境初始化问题。";
+            case CONFIG_FAULT -> "更接近参数配置、端口/队列设置或启动选项不合法。";
+            default -> signal != null && signal.equalsIgnoreCase("SIGFPE")
+                    ? "崩溃信号已明确为 SIGFPE，更接近除零或非法算术运算，而不是泛化的内存错误。"
+                    : context.getTopCategory().getDescription();
+        };
+    }
+
+    private String firstMeaningfulFrame(List<String> frames) {
+        if (frames == null) {
+            return null;
+        }
+        return frames.stream()
+                .filter(frame -> frame != null && !frame.isBlank())
+                .filter(frame -> !frame.contains("??"))
+                .findFirst()
+                .orElse(null);
     }
 
     private static boolean containsAny(String text, String... tokens) {

@@ -13,27 +13,30 @@ import java.util.StringJoiner;
 @Service
 public class DataNormalizationService {
 
+    private static final int MAX_TEXT_FIELD_LENGTH = 200_000;
+    private static final int MAX_RAW_CONTENT_LENGTH = 1_000_000;
+
     public ParsedFeature normalizeCoredumpResult(GdbParserUtil.GdbParseResult result) {
         ParsedFeature feature = new ParsedFeature();
 
-        feature.setCrashSignal(result.getCrashSignal());
-        feature.setCrashAddress(result.getCrashAddress());
-        feature.setCallStack(joinLines(result.getCallStack()));
-        feature.setRegisters(joinLines(result.getRegisters()));
+        feature.setCrashSignal(truncate(result.getCrashSignal(), 255));
+        feature.setCrashAddress(truncate(result.getCrashAddress(), 255));
+        feature.setCallStack(truncate(joinLines(result.getCallStack()), MAX_TEXT_FIELD_LENGTH));
+        feature.setRegisters(truncate(joinLines(result.getRegisters()), MAX_TEXT_FIELD_LENGTH));
 
         List<String> mbufOps = result.getCallStack().stream()
                 .filter(line -> containsAnyIgnoreCase(line, "rte_pktmbuf", "mbuf", "mempool", "rte_mempool"))
                 .toList();
-        feature.setMbufOperations(joinLines(mbufOps));
+        feature.setMbufOperations(truncate(joinLines(mbufOps), MAX_TEXT_FIELD_LENGTH));
 
         List<String> memoryInfo = result.getCallStack().stream()
                 .filter(line -> containsAnyIgnoreCase(line, "memcpy", "memset", "malloc", "free", "invalid", "segv", "bus error"))
                 .toList();
-        feature.setMemoryInfo(joinLines(memoryInfo));
+        feature.setMemoryInfo(truncate(joinLines(memoryInfo), MAX_TEXT_FIELD_LENGTH));
 
-        feature.setThreadInfo(joinLines(result.getThreadInfo()));
-        feature.setErrorKeywords(extractErrorKeywords(result.getRawOutput()));
-        feature.setRawContent(result.getRawOutput());
+        feature.setThreadInfo(truncate(joinLines(result.getThreadInfo()), MAX_TEXT_FIELD_LENGTH));
+        feature.setErrorKeywords(truncate(extractErrorKeywords(result.getRawOutput()), MAX_TEXT_FIELD_LENGTH));
+        feature.setRawContent(truncate(result.getRawOutput(), MAX_RAW_CONTENT_LENGTH));
 
         return feature;
     }
@@ -41,10 +44,10 @@ public class DataNormalizationService {
     public ParsedFeature normalizeLogResult(DpdkLogParserUtil.LogParseResult result) {
         ParsedFeature feature = new ParsedFeature();
 
-        feature.setErrorKeywords(joinCommaSeparated(result.getErrorKeywords()));
-        feature.setMbufOperations(joinLines(result.getMbufOperations()));
-        feature.setMemoryInfo(joinLines(result.getMemoryInfo()));
-        feature.setThreadInfo(joinLines(result.getThreadInfo()));
+        feature.setErrorKeywords(truncate(joinCommaSeparated(result.getErrorKeywords()), MAX_TEXT_FIELD_LENGTH));
+        feature.setMbufOperations(truncate(joinLines(result.getMbufOperations()), MAX_TEXT_FIELD_LENGTH));
+        feature.setMemoryInfo(truncate(joinLines(result.getMemoryInfo()), MAX_TEXT_FIELD_LENGTH));
+        feature.setThreadInfo(truncate(joinLines(result.getThreadInfo()), MAX_TEXT_FIELD_LENGTH));
 
         String driverInfo = joinLines(result.getDriverInfo());
         String ealParameters = result.getEalParameters();
@@ -53,8 +56,8 @@ public class DataNormalizationService {
                     ? driverInfo
                     : ealParameters + "\n" + driverInfo;
         }
-        feature.setEalParameters(ealParameters);
-        feature.setRawContent(result.getRawContent());
+        feature.setEalParameters(truncate(ealParameters, MAX_TEXT_FIELD_LENGTH));
+        feature.setRawContent(truncate(result.getRawContent(), MAX_RAW_CONTENT_LENGTH));
 
         return feature;
     }
@@ -97,5 +100,17 @@ public class DataNormalizationService {
         values.forEach(joiner::add);
         String joined = joiner.toString();
         return joined.isBlank() ? null : joined;
+    }
+
+    private static String truncate(String value, int maxLength) {
+        if (value == null || value.isBlank()) {
+            return value;
+        }
+        if (value.length() <= maxLength) {
+            return value;
+        }
+        String suffix = "\n... [truncated by platform]";
+        int keepLength = Math.max(0, maxLength - suffix.length());
+        return value.substring(0, keepLength) + suffix;
     }
 }

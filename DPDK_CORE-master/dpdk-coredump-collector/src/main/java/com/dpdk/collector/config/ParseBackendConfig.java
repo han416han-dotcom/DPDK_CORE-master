@@ -10,9 +10,9 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "dpdk.collector.parse")
 public class ParseBackendConfig {
     /**
-     * 默认解析后端：LOCAL_GDB / WSL2_GDB / REMOTE_SSH
+     * 默认解析后端：WSL2_GDB
      */
-    private ParseBackend backend = ParseBackend.LOCAL_GDB;
+    private ParseBackend backend = ParseBackend.WSL2_GDB;
 
     /**
      * 可选：core 对应的可执行文件（或带符号的 binary）路径。
